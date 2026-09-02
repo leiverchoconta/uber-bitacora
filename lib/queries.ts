@@ -4,7 +4,7 @@
  */
 
 import { asc, desc, eq } from "drizzle-orm";
-import { db } from "./db";
+import { getDb } from "./db";
 import { services, sessions, settings } from "./db/schema";
 import {
   DEFAULT_SETTINGS,
@@ -23,7 +23,7 @@ export type StoredSession = Omit<Session, "services"> & {
 };
 
 export async function getSettings(): Promise<Settings> {
-  const [row] = await db.select().from(settings).where(eq(settings.id, 1));
+  const [row] = await getDb().select().from(settings).where(eq(settings.id, 1));
   if (!row) return DEFAULT_SETTINGS;
 
   return {
@@ -39,8 +39,8 @@ export async function getSettings(): Promise<Settings> {
 
 export async function getSessions(): Promise<StoredSession[]> {
   const [sessionRows, serviceRows] = await Promise.all([
-    db.select().from(sessions).orderBy(desc(sessions.date)),
-    db.select().from(services).orderBy(asc(services.createdAt)),
+    getDb().select().from(sessions).orderBy(desc(sessions.date)),
+    getDb().select().from(services).orderBy(asc(services.createdAt)),
   ]);
 
   const bySession = new Map<string, StoredService[]>();

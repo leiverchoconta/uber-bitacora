@@ -10,7 +10,7 @@ import {
   startSession,
 } from "@/lib/auth";
 import { startOfWeek } from "@/lib/dates";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { services, sessions, settings } from "@/lib/db/schema";
 import { DEFAULT_SETTINGS } from "@/lib/metrics";
 import { getSettings } from "@/lib/queries";
@@ -153,14 +153,16 @@ export async function addSession(form: FormData): Promise<void> {
       max: 5_000_000,
     });
 
-    await db.insert(sessions).values({
-      date,
-      minutes: Math.round(hours * 60),
-      kmStart,
-      kmEnd,
-      fuelCost,
-      notes: text(form, "notes", 500) || null,
-    });
+    await getDb()
+      .insert(sessions)
+      .values({
+        date,
+        minutes: Math.round(hours * 60),
+        kmStart,
+        kmEnd,
+        fuelCost,
+        notes: text(form, "notes", 500) || null,
+      });
 
     // Jump to the week the session belongs to, which may not be the one on screen.
     const { weekStartsOn } = await getSettings();
@@ -171,32 +173,36 @@ export async function addSession(form: FormData): Promise<void> {
 export async function deleteSession(form: FormData): Promise<void> {
   await guard(form, "Sesión eliminada", async () => {
     const id = uuid(form, "sessionId");
-    await db.delete(sessions).where(eq(sessions.id, id));
+    await getDb().delete(sessions).where(eq(sessions.id, id));
   });
 }
 
 export async function addService(form: FormData): Promise<void> {
   await guard(form, "Servicio agregado", async () => {
     const sessionId = uuid(form, "sessionId");
-    const [session] = await db
+    const [session] = await getDb()
       .select({ id: sessions.id })
       .from(sessions)
       .where(eq(sessions.id, sessionId));
     if (!session) throw new InvalidInput("Esa sesión ya no existe.");
 
-    await db.insert(services).values({
-      sessionId,
-      km: integer(form, "km", "Km del servicio", { max: 2_000 }),
-      amount: integer(form, "amount", "Valor del servicio", { max: 5_000_000 }),
-      isAirport: form.get("isAirport") === "on",
-    });
+    await getDb()
+      .insert(services)
+      .values({
+        sessionId,
+        km: integer(form, "km", "Km del servicio", { max: 2_000 }),
+        amount: integer(form, "amount", "Valor del servicio", {
+          max: 5_000_000,
+        }),
+        isAirport: form.get("isAirport") === "on",
+      });
   });
 }
 
 export async function deleteService(form: FormData): Promise<void> {
   await guard(form, "Servicio eliminado", async () => {
     const id = uuid(form, "serviceId");
-    await db.delete(services).where(eq(services.id, id));
+    await getDb().delete(services).where(eq(services.id, id));
   });
 }
 
@@ -238,7 +244,7 @@ export async function saveSettings(form: FormData): Promise<void> {
       );
     }
 
-    await db
+    await getDb()
       .insert(settings)
       .values(values)
       .onConflictDoUpdate({ target: settings.id, set: values });
@@ -271,7 +277,7 @@ export async function syncFuelEstimate(form: FormData): Promise<void> {
       fuelCostPerKmEstimate: measured,
       updatedAt: new Date(),
     };
-    await db
+    await getDb()
       .insert(settings)
       .values(values)
       .onConflictDoUpdate({ target: settings.id, set: values });
