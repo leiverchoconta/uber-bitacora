@@ -11,9 +11,8 @@ import {
 } from "@/lib/auth";
 import { startOfWeek } from "@/lib/dates";
 import { getDb } from "@/lib/db";
-import { services, sessions, settings } from "@/lib/db/schema";
-import { DEFAULT_SETTINGS } from "@/lib/metrics";
-import { getSettings } from "@/lib/queries";
+import { passPayments, services, sessions, settings } from "@/lib/db/schema";
+import { WEEK_STARTS_ON } from "@/lib/metrics";
 
 /**
  * Validation lives here because Server Actions are a trust boundary: they are
@@ -49,18 +48,25 @@ function integer(
   return rounded;
 }
 
-function decimal(
+/** Reads a decimal field and returns it scaled to an integer. */
+function scaled(
   form: FormData,
   field: string,
   label: string,
-  { min = 0, max = 24 } = {},
+  factor: number,
+  { min = 0, max = Number.MAX_SAFE_INTEGER } = {},
 ): number {
   const raw = text(form, field, 20).replace(",", ".");
+  if (raw === "") {
+    // An omitted field is zero only when zero is actually allowed.
+    if (min > 0) throw new InvalidInput(`${label}: escribe un número.`);
+    return 0;
+  }
   const value = Number(raw);
-  if (raw === "" || !Number.isFinite(value) || value < min || value > max) {
+  if (!Number.isFinite(value) || value < min || value > max) {
     throw new InvalidInput(`${label}: debe estar entre ${min} y ${max}.`);
   }
-  return value;
+  return Math.round(value * factor);
 }
 
 function isoDate(form: FormData, field: string, label: string): string {
@@ -148,25 +154,49 @@ export async function addSession(form: FormData): Promise<void> {
       );
     }
 
-    const hours = decimal(form, "hours", "Horas conectado", { max: 24 });
-    const fuelCost = integer(form, "fuelCost", "Gasto en gasolina", {
+    // Holds minutes, not hours: the field is decimal hours, scaled on read.
+    const minutes = scaled(form, "hours", "Horas conectado", 60, {
+      min: 0.25,
+      max: 24,
+    });
+
+    // The refuel checkbox drives validation: with it, both numbers are
+    // required; without it, neither is accepted. Otherwise the flag would be
+    // decoration and the fuel figures could silently disagree with it.
+    const refueled = form.get("refueled") === "on";
+    const fuelCost = scaled(form, "fuelCost", "Valor de la gasolina", 1, {
       max: 5_000_000,
     });
+    const fuelGallonsX100 = scaled(form, "gallons", "Galones", 100, {
+      max: 100,
+    });
+
+    if (refueled && (fuelCost === 0 || fuelGallonsX100 === 0)) {
+      throw new InvalidInput(
+        "Marcaste que tanqueaste: escribe el valor y los galones.",
+      );
+    }
+    if (!refueled && (fuelCost > 0 || fuelGallonsX100 > 0)) {
+      throw new InvalidInput(
+        "Escribiste gasolina pero no marcaste que tanqueaste.",
+      );
+    }
 
     await getDb()
       .insert(sessions)
       .values({
         date,
-        minutes: Math.round(hours * 60),
+        minutes,
         kmStart,
         kmEnd,
+        refueled,
         fuelCost,
+        fuelGallonsX100,
         notes: text(form, "notes", 500) || null,
       });
 
-    // Jump to the week the session belongs to, which may not be the one on screen.
-    const { weekStartsOn } = await getSettings();
-    form.set("week", startOfWeek(date, weekStartsOn));
+    // Jump to the week the session belongs to, which may not be the one shown.
+    form.set("week", startOfWeek(date, WEEK_STARTS_ON));
   });
 }
 
@@ -206,75 +236,34 @@ export async function deleteService(form: FormData): Promise<void> {
   });
 }
 
-export async function saveSettings(form: FormData): Promise<void> {
-  await guard(form, "Ajustes guardados", async () => {
-    const values = {
-      id: 1,
-      netTargetMonthly: integer(form, "netTargetMonthly", "Meta neta mensual", {
-        min: 1,
-      }),
-      farePerKmTarget: integer(form, "farePerKmTarget", "Tarifa promedio", {
-        min: 1,
-        max: 100_000,
-      }),
-      fuelCostPerKmEstimate: integer(
-        form,
-        "fuelCostPerKmEstimate",
-        "Costo estimado de gasolina por km",
-        { min: 1, max: 100_000 },
-      ),
-      gallonPrice: integer(form, "gallonPrice", "Precio del galón", {
-        min: 1,
-        max: 1_000_000,
-      }),
-      fixedCostsMonthly: integer(form, "fixedCostsMonthly", "Costo de pases"),
-      hoursTargetMonthly: integer(form, "hoursTargetMonthly", "Meta de horas", {
-        min: 1,
-        max: 744,
-      }),
-      weekStartsOn: integer(form, "weekStartsOn", "Inicio de semana", {
-        max: 6,
-      }),
-      updatedAt: new Date(),
-    };
-
-    if (values.farePerKmTarget <= values.fuelCostPerKmEstimate) {
-      throw new InvalidInput(
-        "La tarifa por km debe superar el costo de gasolina por km.",
-      );
-    }
-
+export async function addPassPayment(form: FormData): Promise<void> {
+  await guard(form, "Pase registrado", async () => {
     await getDb()
-      .insert(settings)
-      .values(values)
-      .onConflictDoUpdate({ target: settings.id, set: values });
+      .insert(passPayments)
+      .values({
+        date: isoDate(form, "date", "Fecha del pase"),
+        amount: integer(form, "amount", "Valor del pase", {
+          min: 1,
+          max: 5_000_000,
+        }),
+      });
   });
 }
 
-/** Adopts the measured fuel cost per km as the planning estimate. */
-export async function syncFuelEstimate(form: FormData): Promise<void> {
-  await guard(form, "Meta actualizada con el dato real", async () => {
-    const measured = integer(
-      form,
-      "fuelCostPerKmEstimate",
-      "Costo real por km",
-      {
-        min: 1,
-        max: 100_000,
-      },
-    );
-    const current = await getSettings();
-    if (measured >= current.farePerKmTarget) {
-      throw new InvalidInput(
-        "Ese costo por km supera tu tarifa promedio: ajusta la tarifa primero.",
-      );
-    }
+export async function deletePassPayment(form: FormData): Promise<void> {
+  await guard(form, "Pase eliminado", async () => {
+    const id = uuid(form, "passId");
+    await getDb().delete(passPayments).where(eq(passPayments.id, id));
+  });
+}
 
+export async function saveSettings(form: FormData): Promise<void> {
+  await guard(form, "Meta guardada", async () => {
     const values = {
-      ...DEFAULT_SETTINGS,
-      ...current,
       id: 1,
-      fuelCostPerKmEstimate: measured,
+      netTargetWeekly: integer(form, "netTargetWeekly", "Meta neta semanal", {
+        min: 1,
+      }),
       updatedAt: new Date(),
     };
     await getDb()

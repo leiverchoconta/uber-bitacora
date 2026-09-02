@@ -1,6 +1,8 @@
 # Bitácora de ruta
 
-Weekly logbook for connected Uber driving sessions. Records each shift — hours, odometer, fuel, and the trips it produced — and derives what the platform's own app does not report: net income after fuel and fixed costs, the share of kilometers driven empty, the real cost per kilometer, and the pace needed to close the monthly target.
+Weekly logbook for connected Uber driving sessions. Records each shift — hours, odometer, refuels, and the trips it produced — plus the platform passes as they are paid, and derives what the platform's own app does not report: net income after fuel and passes, the share of kilometers driven empty, real fuel economy against the odometer, and the pace needed to close the week.
+
+The driver configures exactly one number: the weekly take-home target. Everything else is measured from what actually happened.
 
 Single driver, single password. The interface is in Spanish (es-CO); the code and docs are in English.
 
@@ -34,7 +36,7 @@ lib/
   format.ts          es-CO display formatting
   auth.ts            password check and signed session cookie
   queries.ts         database reads
-  db/schema.ts       three tables: sessions, services, settings
+  db/schema.ts       four tables: sessions, services, pass_payments, settings
 docs/
   worklog.md         running history
   prototype.html     the original single-file prototype, kept as reference

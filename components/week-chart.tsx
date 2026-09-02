@@ -2,8 +2,8 @@ import { dayMonth, money } from "@/lib/format";
 import type { MonthReport } from "@/lib/metrics";
 
 /**
- * Monthly net per week as CSS bars with the weekly target as a dashed line.
- * Four or five bars do not justify a charting library.
+ * Net per week for the month, as CSS bars with the weekly target as a dashed
+ * line. Four or five bars do not justify a charting library.
  */
 export function WeekChart({
   report,
@@ -13,11 +13,11 @@ export function WeekChart({
   currentWeekStart: string;
 }) {
   const scale = Math.max(
-    report.weeklyNetTarget * 1.25,
+    report.weeklyTarget * 1.25,
     ...report.weeks.map((w) => w.net),
     1,
   );
-  const targetPct = Math.min(100, (report.weeklyNetTarget / scale) * 100);
+  const targetPct = Math.min(100, (report.weeklyTarget / scale) * 100);
 
   return (
     <div className="border border-line bg-paper px-4 pt-5 pb-2">
@@ -27,21 +27,26 @@ export function WeekChart({
           style={{ bottom: `${targetPct}%` }}
         >
           <span className="absolute right-0 -top-4 text-[10px] text-rust">
-            meta {money(report.weeklyNetTarget)}
+            meta {money(report.weeklyTarget)}
           </span>
         </div>
 
         {report.weeks.map((week) => {
           const height = Math.max(0, (week.net / scale) * 100);
-          const reached = week.net >= report.weeklyNetTarget;
+          // A losing week draws no bar — the rust figure above it is the signal.
+          const reached = week.net >= report.weeklyTarget;
           const isCurrent = week.weekStart === currentWeekStart;
           return (
             <div
               key={week.weekStart}
               className="flex h-full flex-1 flex-col items-center justify-end"
             >
-              <span className="mb-1 whitespace-nowrap text-[10px] text-ink-soft">
-                {week.net > 0 ? money(week.net) : "—"}
+              <span
+                className={`mb-1 whitespace-nowrap text-[10px] ${
+                  week.worked && week.net < 0 ? "text-rust" : "text-ink-soft"
+                }`}
+              >
+                {week.worked ? money(week.net) : "—"}
               </span>
               <div
                 className={`w-[70%] rounded-t-sm ${
@@ -63,10 +68,10 @@ export function WeekChart({
         </span>
         <span
           className={`font-display text-xl ${
-            report.netAfterFixedCosts >= 0 ? "text-teal" : "text-rust"
+            report.net >= 0 ? "text-teal" : "text-rust"
           }`}
         >
-          {money(report.netAfterFixedCosts)}
+          {money(report.net)}
         </span>
       </div>
     </div>

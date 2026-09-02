@@ -14,9 +14,11 @@ The job to be done: **know if today's driving paid for itself, and how much is m
 
 ## Product Purpose
 
-A weekly logbook of connected sessions. Each session records hours, odometer start and end, fuel spending, and the trips it produced. From that, the app derives what the platform hides: net income after fuel and fixed costs, the share of kilometers driven with no passenger, the real cost per kilometer, and the pace needed to reach the monthly target.
+A weekly logbook of connected sessions. Each session records hours, odometer start and end, whether the tank was filled and what that cost, and the trips it produced. Platform passes are recorded as they are paid. From that, the app derives what the platform hides: net income after fuel and passes, the share of kilometers driven with no passenger, real fuel economy against the odometer, and the pace needed to close the week.
 
-Success is a single sentence being true: *the driver knows, before starting the car, how many kilometers and hours today has to produce.*
+The driver configures exactly one number — the weekly take-home target. Everything else the app once asked him to estimate is now measured from what actually happened.
+
+Success is a single sentence being true: *the driver knows, before starting the car, how many kilometers today has to produce.*
 
 ## Non-goals
 
@@ -46,7 +48,7 @@ Tone in Spanish, neutral and direct: *"Faltan $1.240.000 en 3 días"*, never *"�
 2. **Answer before asking.** The first thing on screen is the state of the week, not a form. Input comes after the answer.
 3. **Say the uncomfortable number.** Negative nets, 40% empty kilometers, and a fuel estimate that no longer matches reality are shown plainly, in a warning color, with the correction one tap away.
 4. **Fast on a phone, in the dark, with one hand.** Native inputs, real submit buttons, nothing that requires precision aiming or JavaScript to have loaded.
-5. **Estimates are calibrated by measurement.** Any planning assumption the app makes (fuel cost per km) is shown next to what actually happened, and can be replaced by the measured value.
+5. **Nothing is estimated that can be measured.** The app asks for one goal and derives the rest from the driver's own history. A figure with no history behind it shows a dash — never a plausible default that would be mistaken for knowledge.
 
 ## Accessibility & Inclusion
 

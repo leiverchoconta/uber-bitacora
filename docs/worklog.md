@@ -2,6 +2,50 @@
 
 Running history of this repo, newest first. Records what changed and why it mattered — the context `git log` alone does not carry.
 
+## 2026-09-02 — One goal, measured assumptions
+
+Reworked the settings model at the driver's request: the app now asks for a single number and derives everything else from what actually happened.
+
+**Removed as settings** — expected fare per km, estimated fuel cost per km, gallon price, monthly fixed costs, monthly hours target, and the week start day. Six fields became zero.
+
+**What replaced each one**
+
+- The goal is now **weekly and used whole**. Monthly targets had to be divided by a month's week count, so every figure on screen depended on a calendar rule that has nothing to do with driving.
+- **Passes are recorded as payments**, each with the date it was actually paid. They are paid about every three days on no fixed weekday, so prorating a monthly figure across weeks was always wrong; a week now costs whatever passes fell inside it.
+- **Fuel is recorded at the pump**, in pesos and gallons, behind a "tanqueé en este turno" checkbox. Gallons are what fuel economy needs, and taking them from the receipt removed the stored gallon price entirely. Economy is now odometer km ÷ real gallons.
+- **The km target is derived from the measured margin** — take-home per km across all history — instead of from two typed estimates. It sharpens with every week of data, and shows a dash until there is any.
+- **The hours target became an observation**: average connected hours per week, over the weeks actually worked.
+
+**Two costs of the change, accepted deliberately**
+
+Per-session net is now lumpy: the shift that filled the tank looks worse than the ones that spent it. The session card says so in place, and the weekly figure — which is what the goal measures — is exact.
+
+The refuel checkbox is enforced by validation rather than by hiding fields, because there is no client JavaScript to hide them with. Ticking it with a zero, or filling the fuel fields without ticking it, are both refused. That is what makes the checkbox mean something instead of being decoration.
+
+**Verification**
+
+21 tests in `lib/metrics.test.ts`, rewritten for the new model — the weekly target used whole, passes counted by real date on any weekday, economy from real gallons, a km target that stays `null` when the measured margin is absent or negative, and the average-hours observation counting only weeks worked.
+
+Then end-to-end against Neon: all three refuel validations refused as intended, and every figure the page rendered checked against arithmetic done by hand — 4% of goal, 400 km, 74% empty, $2.476 per productive km, 53,3 km/gal, $300/km, 16 h weekly average, and 4.400 km remaining derived from a measured $350/km margin. Test data removed afterward.
+
+Schema applied by dropping and recreating the tables, which was safe only because all four were verified empty first. `drizzle-kit push` cannot resolve a column rename without an interactive prompt.
+
+**Code review of PR #1, and what it caught**
+
+One blocking bug: an untouched fuel field posts an empty string, and `integer()` rejects that. Since most shifts have no refuel, *every ordinary save was refused* with "Valor de la gasolina: escribe un número." The end-to-end test had passed `fuelCost=0` explicitly, which is not what the form sends — the test was verifying a request no browser makes. Fixed by reading the field with the helper that already treats an omitted value as zero, and re-tested with the exact payload the form produces.
+
+Three more that were real:
+
+- With sessions logged but no refuel yet, the measured margin equalled revenue ÷ km, because fuel cost was zero. The app presented that as "tu margen medido" and derived a km target from it — optimistic by the entire cost of fuel, and contradicting what `UX.md` promised. Both fuel figures are now `null` until a refuel exists.
+- The month chart rendered any week at or below zero as a dash. That was right when fixed costs were monthly, but now that passes are charged to the week they fell in, a negative week is ordinary — a week off with one pass paid looked identical to a week never worked. A week with any record now shows its real figure, in rust when negative.
+- The pass form defaulted to today even when reviewing a past week, so a forgotten pass would save into the current week and vanish from the list on screen. It now defaults to the displayed week.
+
+Plus three small ones: an omitted field could bypass a `min > 0` requirement inside the validation helper, a variable named `hours` held minutes, and `daysSinceLastPass` was dead code — deleted rather than left waiting for a feature that was cut.
+
+**Two findings answered with words instead of code.** The km-remaining figure is short by the passes not yet paid this week; closing that gap requires projecting the three-day cycle, which this design rejects on purpose, so the caption now states the omission. And `drizzle-kit push` cannot repeat this migration on a table with rows — recorded as an open question rather than pre-building migration infrastructure.
+
+The settings panel also now says when the target on screen is the default rather than one the driver saved.
+
 ## 2026-09-02 — Deployed to production on Neon
 
 Live at https://uber-bitacora.vercel.app, backed by a Neon Postgres provisioned through the Vercel marketplace integration.

@@ -15,23 +15,28 @@ Movement is time travel, expressed in the URL:
 
 ## Information architecture
 
-Three entities:
+Four entities:
 
 ```
-settings (single row)      sessions ──< services
+settings (single row)     sessions ──< services     pass_payments
 ```
 
-- **session** — one connected shift on a calendar date: minutes connected, odometer start and end, fuel spending, notes.
+- **session** — one connected shift on a calendar date: minutes connected, odometer start and end, whether the tank was filled, and what that fill cost in pesos and gallons.
 - **service** — one paid trip inside a session: kilometers, amount, airport flag.
-- **settings** — the driver's targets and assumptions. Exactly one row exists; there is one driver.
+- **pass_payment** — one platform pass, recorded on the day it was actually paid. Not attached to a session or a week.
+- **settings** — one row holding one number: the weekly take-home target.
 
-Derived aggregates are never stored. Week and month totals, net income, empty-kilometer share and pace are all computed from the rows on every render (`lib/metrics.ts`), so correcting a session immediately corrects every number that depends on it.
+Derived aggregates are never stored. Totals, net income, empty-kilometer share, fuel economy and pace are all computed from the rows on every render (`lib/metrics.ts`), so correcting a session immediately corrects every number that depends on it.
 
-**Weeks are the unit of work; months are the unit of the target.** A week belongs to the month containing its middle day, so a week straddling two months is counted once. Monthly targets are divided by however many weeks that month owns — four or five, never a fixed number.
+**The week is the unit of everything.** The target is weekly and is used whole — never divided, never prorated. A month exists only as a chart of its weeks, where a week belongs to the month containing its middle day so a straddling week is counted once.
+
+**Assumptions are measured, not configured.** The driver types in one number. Expected fare per km, fuel cost per km, gallon price, monthly fees and an hours target were all removed as settings: each is now either measured from the sessions or recorded as it happens. A figure with no history behind it shows a dash instead of a default.
 
 ## Core flows
 
-**Log a shift** — park the car → open the app (already authenticated) → the week's state is on screen → fill date, hours, odometer start/end, fuel → *Guardar sesión* → lands on the week the session belongs to, with the session card at the top of the log and a prompt to add its trips. If validation fails (odometer running backwards, more than 2.000 km in one shift), the page returns with the reason stated and nothing saved.
+**Log a shift** — park the car → open the app (already authenticated) → the week's state is on screen → fill date, hours, odometer start/end → tick *tanqueé en este turno* only if the tank was filled, and then its cost and gallons → *Guardar sesión* → lands on the week the session belongs to, with the session card at the top of the log and a prompt to add its trips. If validation fails (odometer running backwards, more than 2.000 km in one shift, fuel figures disagreeing with the refuel checkbox), the page returns with the reason stated and nothing saved.
+
+**Record a pass** — the passes section of the week → date (defaults to today) and amount → *Registrar pase* → the week's net drops by that amount immediately. Passes are paid roughly every three days on no fixed weekday, so they are recorded as they happen rather than prorated.
 
 **Add the trips** — on the session card → type kilometers and amount, tick *aeropuerto* if it applies → *Agregar* → the trip appears in the card's list and every derived figure on the page updates. Repeat per trip; the row stays open for the next one. A trip is removed with *borrar* on its row.
 
@@ -39,7 +44,7 @@ Derived aggregates are never stored. Week and month totals, net income, empty-ki
 
 **Review a past week or month** — arrows in the header (weeks) or above the chart (months) → the whole page recomputes for that period. Past weeks show no pace panel: there is nothing left to plan.
 
-**Recalibrate the fuel estimate** — the measured panel compares real cost per kilometer against the planning estimate → when they diverge by more than $15/km, a button offers the measured value → one tap rewrites the setting, and the kilometer target changes with it. Refused if the measured cost exceeds the expected fare per kilometer, which would make the target meaningless.
+**Set the goal** — settings drawer → one field, the weekly take-home target → *Guardar meta*. Nothing else is configurable. The kilometres needed to reach it are derived from the driver's own measured margin per kilometre, so the goal sharpens as history accumulates instead of resting on a typed assumption.
 
 **Correct a mistake** — session card → *eliminar sesión* → the session and its trips are gone (cascade). There is no edit: a wrong session is deleted and retyped, which is faster on a phone than an edit form.
 
@@ -56,6 +61,10 @@ Derived aggregates are never stored. Week and month totals, net income, empty-ki
 **Week with no sessions** — the log shows a dashed frame reading *"Sin sesiones esta semana."* The stat tiles show zeros with their targets still visible, so the week reads as "nothing yet", not "broken". First-run (no data at all) is the same view; the settings drawer carries defaults so targets are never blank.
 
 **Session with no trips** — the card states *"Sin servicios registrados aún."* and the net shows negative by the fuel already spent, which is the truth.
+
+**Week with no passes recorded** — the passes section says so plainly, and the header states "(sin pases registrados esta semana)" next to the net, so a suspiciously healthy week is never mistaken for a real one.
+
+**No refuel recorded yet** — the fuel economy panel is hidden entirely, and the km-remaining figure reads "sin margen medido aún" rather than guessing. A single refuel is enough to make both appear, and the caption says the number sharpens with more.
 
 **Loading** — none by design. Both routes are server-rendered on demand and the queries are two flat selects over a single driver's rows. No skeletons, no spinners, no optimistic UI.
 
@@ -74,7 +83,9 @@ Derived aggregates are never stored. Week and month totals, net income, empty-ki
 - **Odometer end below start** — rejected with a message; a shift cannot consume negative distance.
 - **More than 2.000 km in one shift** — rejected as an odometer typo, not stored as a record week.
 - **Trips totalling more kilometers than the odometer** — allowed, and it shows as a negative empty-kilometer share. The odometer is the value most likely mistyped, and the app surfaces the contradiction rather than hiding it.
-- **Fare per km set below fuel cost per km** — rejected in settings: it would make the kilometer target negative or infinite.
+- **Refuel checkbox disagreeing with the fuel figures** — rejected both ways: ticked with a zero cost or zero gallons, and unticked with either one filled in. Without JavaScript the fields cannot be hidden, so validation is what gives the checkbox meaning.
+- **A measured margin at or below zero** — no kilometre target is shown. A driver losing money per kilometre cannot be told how far to drive to reach a positive goal.
+- **A week with a refuel and one without** — the refuel week looks worse and the other looks inflated. The session card says so in place; the weekly figure is the one that balances.
 - **Timezone** — a session's date is a calendar date, stored as `date`, never a timestamp. "Today" is resolved in `America/Bogota` regardless of where the server runs.
 - **Month with five weeks** — targets divide by five that month, not by a hardcoded four.
 - **Thousands of rows** — not a case worth designing for: one driver generates a few hundred sessions a year, and the whole set is aggregated in memory. If it ever matters, aggregation moves into SQL.
@@ -84,7 +95,9 @@ Derived aggregates are never stored. Week and month totals, net income, empty-ki
 
 - **Exactly one settings row exists.** Enforced by a database check constraint (`id = 1`), not by convention. Saving settings upserts that row.
 - **A trip cannot exist without its session.** Deleting a session cascades to its trips.
-- **Fixed costs ("pases") are monthly, and prorated per week** — the week's share is charged against the week's net, while the chart charges the full month once. Both views state which one they are showing.
-- **The kilometer target is derived, never typed.** It follows from net target, fixed costs, expected fare per km and estimated fuel cost per km. Changing any of the four moves it.
+- **Passes cost whatever actually fell inside the period.** A week charges the passes paid between its Monday and Sunday; a month charges every pass inside it. Nothing is prorated or projected from the three-day cadence.
+- **Fuel is only recorded at a refuel.** A shift with no fill-up carries no fuel cost, which makes per-session net lumpy by design and per-week net exact.
+- **The kilometre target is derived from measurement, never typed.** It follows from the weekly target, the passes already paid, and the measured take-home per kilometre across all history.
+- **Weeks run Monday to Sunday, and that is not configurable.** One driver, one convention.
 - **A session's date must be a real `YYYY-MM-DD`.** Anything else is rejected before it reaches the database.
 - **The session cookie expires after 90 days**, signed with `AUTH_SECRET`. An expired or tampered cookie is treated as absent.

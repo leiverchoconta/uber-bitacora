@@ -114,7 +114,7 @@ Warm, printed, and low-chroma except where a number needs to be believed — one
 
 ### Named Rules
 
-**The Empty Ink Rule.** A figure that does not exist yet is an em dash (`—`) in ink-soft, never a zero and never a blank. Zero means measured zero; the dash means nothing measured. The fuel panel disappears entirely rather than showing dashes for everything.
+**The Empty Ink Rule.** A figure that does not exist yet is an em dash (`—`) in ink-soft, never a zero and never a blank. Zero means measured zero; the dash means nothing measured. The fuel panel disappears entirely rather than showing dashes for everything, and a stat whose basis is missing says so in words in its sub-caption ("sin margen medido aún") rather than showing a plausible number.
 
 **The Three Signals Rule.** Exactly three colors carry meaning about numbers: gold (counting), moss (reached), rust (trouble). No fourth signal color is added, and none of the three is ever used decoratively — a gold rule on a card means that card holds a session in progress toward the week, not that gold looked good there.
 
@@ -161,6 +161,9 @@ Two structural devices replace elevation:
 - **Link:** no ground, rust text, underlined, `0.6875rem`. Destructive and low-stakes actions (`borrar`, `eliminar sesión`, `cerrar sesión`). Underline drops on hover.
 - **Hover / Focus / Disabled:** teal darkens to teal-soft; gold uses `brightness(0.95)`; focus is a 2px teal outline with 1px offset, never a glow. Disabled state does not exist on buttons — an unavailable action is not rendered.
 
+### Fieldsets
+- The refuel block is a real `<fieldset>` separated by a 1px top rule, opening with the checkbox and a 10px explanatory line, then its two fields. Grouping is the only affordance available: without JavaScript the fields cannot be hidden when the box is unticked, so the border and the caption carry the conditionality that a disabled state would otherwise show.
+
 ### Inputs
 - White ground against paper surfaces, 1px rule border, 2px radius, `0.5rem 0.75rem` padding, `1rem` text — the size floor exists so iOS Safari does not zoom on focus.
 - Labels sit above the field, always visible, uppercase `0.6875rem` ink-soft with `0.025em` tracking. Hints sit below at `0.625rem`. Placeholders carry examples only (`8`, `Tráfico, zonas, clima…`) and never replace a label.
@@ -169,7 +172,8 @@ Two structural devices replace elevation:
 - Focus is a 2px teal outline, 1px offset. The date input's picker indicator is set to 50% opacity, since the browser default is invisible on paper.
 
 ### Cards
-- **Session card:** paper ground, 1px rule border, a 3px gold left accent rule, zero radius. Three bands: a header (date, hours, kilometers, trip count, and net right-aligned), a hairline metric strip on the page ground, then the trip list with its add row. Zero radius is deliberate — the card is a torn page, not a chip.
+- **Pass list:** paper ground, 1px rule border, no accent. Each payment is one dashed-underlined row — date, amount, and a rust `borrar` link — closed by a total line and the record form. Deliberately the plainest surface in the app: it is a ledger, not a metric.
+- **Session card:** paper ground, 1px rule border, a 3px gold left accent rule, zero radius. Bands: a header (date, hours, kilometers, trip count, and net right-aligned), a hairline metric strip on the page ground, an optional 10px caveat line when the shift carried a refuel, then the trip list with its add row. Zero radius is deliberate — the card is a torn page, not a chip. The right-hand label under the net changes with the shift ("neto, con el tanqueo" versus "ingresos del turno") because the two are not comparable figures.
 - **Stat tile:** paper ground, no border of its own, `0.75rem 1rem` padding. Label (`0.6875rem` ink-soft), value (Fraunces `1.25rem`), optional sub-caption naming the target it is measured against. Tiles are two-up on a phone and stay two-up — three across would drop each figure below reading size.
 - **Chart box:** paper ground, 1px rule border, `1.25rem` top padding. Bars are 70% of column width with a 2px top radius, gold below target and moss at or above. The target line is a 1px dashed rust rule positioned by percentage, labelled at `0.625rem` in rust. The current week's bar carries a 2px inset teal outline.
 
@@ -184,6 +188,7 @@ Two structural devices replace elevation:
 ## 6. Do's and Don'ts
 
 **Do**
+- Say in words when a figure has no basis yet ("sin margen medido aún", "aún sin promedio") instead of printing a default that reads as measured.
 - Set every derived figure in Fraunces and every typed figure in IBM Plex Mono, so the driver can tell what the app concluded from what he entered.
 - Use the 1px `#dad1ba` gap-as-divider grid for any block of adjacent figures.
 - State a target next to the figure that is measured against it (`meta 1.240 km`), in ink-soft at `0.6875rem`.
