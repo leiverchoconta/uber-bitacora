@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitácora — Conductor Barranquilla</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3EEE1; --paper:#FBF8F0; --ink:#1C1B17; --ink-soft:#5B5648;
+    --teal:#16403D; --teal-soft:#3E6663; --gold:#D6A13C; --rust:#B3492E;
+    --green:#4F7A52; --line:#DAD1BA;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono', monospace;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:780px;margin:0 auto;padding:28px 18px 80px;}
+  h1,h2,h3{font-family:'Fraunces', serif;font-weight:500;margin:0;}
+  .eyebrow{font-size:12px;color:var(--ink-soft);margin-bottom:2px;}
+  .hero{border-bottom:2px solid var(--teal);padding-bottom:22px;margin-bottom:26px;}
+  .hero-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;}
+  .hero-top h1{font-size:clamp(21px,4.5vw,28px);color:var(--teal);}
+  .nav{display:flex;align-items:center;gap:10px;font-size:13px;}
+  .nav button{background:none;border:1px solid var(--line);color:var(--teal);width:26px;height:26px;border-radius:3px;cursor:pointer;font-family:inherit;}
+  .nav button:hover:not(:disabled){background:var(--teal);color:var(--paper);}
+  .nav button:disabled{opacity:.3;cursor:default;}
+  .progress-row{margin-top:18px;}
+  .progress-num{font-size:clamp(38px,9vw,54px);font-family:'Fraunces',serif;color:var(--teal);line-height:1;}
+  .progress-num span{font-size:.4em;color:var(--ink-soft);}
+  .bar-track{height:8px;background:var(--line);border-radius:4px;margin-top:12px;overflow:hidden;}
+  .bar-fill{height:100%;background:var(--gold);transition:width .4s ease;}
+  .bar-fill.over{background:var(--green);}
+  .progress-caption{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:22px;}
+  .stat{background:var(--paper);padding:14px 16px;}
+  .stat .label{font-size:11px;color:var(--ink-soft);}
+  .stat .value{font-family:'Fraunces',serif;font-size:20px;margin-top:4px;color:var(--ink);}
+  .stat .sub{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .stat .value.warn{color:var(--rust);}
+  .stat .value.ok{color:var(--green);}
+  .pace{background:var(--teal);color:var(--paper);padding:16px 18px;margin-bottom:26px;border-radius:2px;}
+  .pace .label{font-size:11px;opacity:.75;}
+  .pace .big{font-family:'Fraunces',serif;font-size:19px;margin-top:4px;}
+  .pace .note{font-size:12px;opacity:.85;margin-top:8px;line-height:1.5;}
+  .fuel-panel{background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:16px 18px;margin-bottom:30px;border-radius:2px;}
+  .fuel-panel .label{font-size:11px;color:var(--ink-soft);}
+  .fuel-panel .big{font-family:'Fraunces',serif;font-size:18px;margin-top:4px;color:var(--teal);}
+  .fuel-panel .note{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.5;}
+  section{margin-bottom:34px;}
+  section > h2{font-size:19px;color:var(--teal);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;}
+  section > h2 .nav{font-size:12px;}
+
+  /* CHART */
+  .chart-box{background:var(--paper);border:1px solid var(--line);padding:20px 18px 10px;}
+  .chart-bars{display:flex;align-items:flex-end;gap:10px;height:160px;position:relative;padding-top:16px;}
+  .chart-target-line{position:absolute;left:0;right:0;border-top:1px dashed var(--rust);}
+  .chart-target-label{position:absolute;right:0;top:-16px;font-size:10px;color:var(--rust);}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .bar-val{font-size:11px;color:var(--ink-soft);margin-bottom:4px;white-space:nowrap;}
+  .bar-shape{width:70%;background:var(--gold);border-radius:2px 2px 0 0;transition:height .3s ease;}
+  .bar-shape.over{background:var(--green);}
+  .bar-shape.current{outline:2px solid var(--teal);outline-offset:-2px;}
+  .bar-label{font-size:10px;color:var(--ink-soft);margin-top:6px;text-align:center;}
+  .chart-total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 4px 6px;border-top:1px solid var(--line);margin-top:14px;}
+  .chart-total .label{font-size:11px;color:var(--ink-soft);}
+  .chart-total .value{font-family:'Fraunces',serif;font-size:22px;color:var(--teal);}
+
+  form{background:var(--paper);border:1px solid var(--line);padding:18px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  .field input, .field textarea, .field select{width:100%;padding:8px 10px;border:1px solid var(--line);background:#fff;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink);border-radius:2px;}
+  .field input:focus, .field textarea:focus{outline:2px solid var(--teal);outline-offset:1px;}
+  .hint{font-size:10px;color:var(--ink-soft);margin-top:3px;}
+  button.primary{background:var(--teal);color:var(--paper);border:none;padding:11px 20px;font-family:'IBM Plex Mono',monospace;font-size:13px;cursor:pointer;border-radius:2px;}
+  button.primary:hover{background:var(--teal-soft);}
+  button.small{background:var(--gold);color:var(--ink);border:none;padding:9px 14px;font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;border-radius:2px;white-space:nowrap;}
+  .log-empty{color:var(--ink-soft);font-size:13px;padding:20px 0;text-align:center;border:1px dashed var(--line);}
+  .session{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--gold);margin-bottom:14px;}
+  .session-head{padding:14px 16px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .session-head .s-date{font-size:13px;color:var(--teal);font-weight:600;}
+  .session-head .s-sub{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .session-head .s-right{text-align:right;}
+  .session-head .s-amount{font-family:'Fraunces',serif;font-size:19px;}
+  .session-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .m{background:var(--bg);padding:9px 12px;font-size:11px;}
+  .m .mval{font-size:14px;color:var(--ink);margin-top:2px;}
+  .m .mval.warn{color:var(--rust);}
+  .services{padding:10px 16px 14px;}
+  .svc-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:5px 0;border-bottom:1px dashed var(--line);}
+  .svc-row:last-child{border-bottom:none;}
+  .svc-del{background:none;border:none;color:var(--rust);cursor:pointer;font-family:inherit;font-size:11px;}
+  .svc-add{display:flex;gap:8px;margin-top:10px;align-items:end;flex-wrap:wrap;}
+  .svc-add input{padding:6px 8px;border:1px solid var(--line);font-family:inherit;font-size:12px;border-radius:2px;width:90px;}
+  .svc-add label.chk{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-soft);}
+  .s-del{background:none;border:none;color:var(--rust);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;}
+  details{background:var(--paper);border:1px solid var(--line);padding:14px 18px;}
+  summary{cursor:pointer;font-size:13px;color:var(--teal-soft);list-style:none;}
+  summary::-webkit-details-marker{display:none;}
+  summary:before{content:'⚙ ';}
+  details[open] summary{margin-bottom:12px;}
+  .loading{text-align:center;padding:60px 0;color:var(--ink-soft);font-size:13px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--teal);color:var(--paper);padding:10px 18px;border-radius:3px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .3s ease;}
+  .toast.show{opacity:1;}
+  @media(max-width:480px){.stats{grid-template-columns:1fr;} .grid2{grid-template-columns:1fr;} .session-metrics{grid-template-columns:1fr 1fr;} .chart-bars{gap:4px;}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="loading">Cargando bitácora…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const MESES_ABR = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random());
+
+function pad(n){return n<10?'0'+n:''+n;}
+function toDateStr(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function parseDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function todayStr(){ return toDateStr(new Date()); }
+function fmtCOP(n){ return '$' + Math.round(n||0).toLocaleString('es-CO'); }
+function fmtNum(n, d=0){ return (n||0).toLocaleString('es-CO', {maximumFractionDigits:d}); }
+function fmtDayMonth(dateStr){ const d = parseDate(dateStr); return d.getDate()+' '+MESES_ABR[d.getMonth()]; }
+
+let entries = []; // sesiones
+let config = { metaNeta: 6400000, tarifaProm: 2000, gasolinaKmEst: 324, costoPases: 404000, metaHoras: 264, precioGalon: 15650, startOfWeek: 1 };
+let viewingWeekStart = null;   // se fija al cargar
+let viewingChartMonth = null;  // YYYY-MM para la gráfica mensual
+
+function startOfWeek(dateStr){
+  const d = parseDate(dateStr);
+  const dow = d.getDay();
+  const diff = (dow - config.startOfWeek + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return toDateStr(d);
+}
+function endOfWeek(weekStartStr){
+  const d = parseDate(weekStartStr);
+  d.setDate(d.getDate()+6);
+  return toDateStr(d);
+}
+function weekMonthKey(weekStartStr){
+  const d = parseDate(weekStartStr);
+  d.setDate(d.getDate()+3); // día medio de la semana define a qué mes pertenece
+  return d.getFullYear()+'-'+pad(d.getMonth()+1);
+}
+function currentWeekStart(){ return startOfWeek(todayStr()); }
+function currentMonthKey(){ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1); }
+function weekLabel(weekStartStr){
+  const start = parseDate(weekStartStr), end = parseDate(endOfWeek(weekStartStr));
+  const sameMonth = start.getMonth()===end.getMonth();
+  return `${start.getDate()} ${sameMonth?'':'de '+MESES_ABR[start.getMonth()]+' '}al ${end.getDate()} de ${MESES_ABR[end.getMonth()]}`;
+}
+function weeksInMonth(monthKey){
+  const [y,m] = monthKey.split('-').map(Number);
+  const first = new Date(y,m-1,1), last = new Date(y,m,0);
+  const scanStart = new Date(first); scanStart.setDate(scanStart.getDate()-7);
+  const scanEnd = new Date(last); scanEnd.setDate(scanEnd.getDate()+7);
+  const set = new Set();
+  for(let d=new Date(scanStart); d<=scanEnd; d.setDate(d.getDate()+1)){
+    const ws = startOfWeek(toDateStr(d));
+    if(weekMonthKey(ws)===monthKey) set.add(ws);
+  }
+  return Array.from(set).sort();
+}
+
+async function loadData(){
+  try{ const e = await window.storage.get('sesiones'); entries = e ? JSON.parse(e.value) : []; }
+  catch(err){ entries = []; }
+  try{ const c = await window.storage.get('config'); if(c) config = {...config, ...JSON.parse(c.value)}; }
+  catch(err){ /* usar defaults */ }
+  entries.forEach(e => { if(!e.servicios) e.servicios = []; });
+  viewingWeekStart = currentWeekStart();
+  viewingChartMonth = currentMonthKey();
+  render();
+}
+async function saveEntries(){
+  try{ await window.storage.set('sesiones', JSON.stringify(entries)); }
+  catch(err){ showToast('No se pudo guardar. Intenta de nuevo.'); }
+}
+async function saveConfig(){
+  try{ await window.storage.set('config', JSON.stringify(config)); }
+  catch(err){ showToast('No se pudo guardar la configuración.'); }
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function sKmTotal(e){ return (e.kmFinal||0) - (e.kmInicial||0); }
+function sKmProductivo(e){ return e.servicios.reduce((s,v)=>s+v.km,0); }
+function sIngresos(e){ return e.servicios.reduce((s,v)=>s+v.valor,0); }
+function sMargen(e){ return sIngresos(e) - (e.gastoGasolina||0); }
+
+function aggregate(list){
+  const kmTotal = list.reduce((s,e)=>s+sKmTotal(e),0);
+  const kmProductivo = list.reduce((s,e)=>s+sKmProductivo(e),0);
+  const ingresos = list.reduce((s,e)=>s+sIngresos(e),0);
+  const gasolina = list.reduce((s,e)=>s+(e.gastoGasolina||0),0);
+  const horas = list.reduce((s,e)=>s+e.horas,0);
+  const aeropuerto = list.reduce((s,e)=>s+e.servicios.filter(v=>v.aeropuerto).length,0);
+  const kmVacio = kmTotal - kmProductivo;
+  const pctVacio = kmTotal>0 ? (kmVacio/kmTotal)*100 : 0;
+  const tarifaProductivo = kmProductivo>0 ? ingresos/kmProductivo : 0;
+  const tarifaTotal = kmTotal>0 ? ingresos/kmTotal : 0;
+  const galones = config.precioGalon>0 ? gasolina/config.precioGalon : 0;
+  const rendimiento = (kmTotal>0 && galones>0) ? kmTotal/galones : null;
+  const costoKmReal = kmTotal>0 ? gasolina/kmTotal : null;
+  return {kmTotal, kmProductivo, kmVacio, pctVacio, ingresos, gasolina, horas, aeropuerto, kmVacio, tarifaProductivo, tarifaTotal, galones, rendimiento, costoKmReal};
+}
+
+function statsForWeek(weekStart){
+  const end = endOfWeek(weekStart);
+  const list = entries.filter(e => e.date>=weekStart && e.date<=end).sort((a,b)=>b.date.localeCompare(a.date));
+  const agg = aggregate(list);
+  const neto = agg.ingresos - agg.gasolina; // el costo del pase se ve a nivel mensual/semanal prorrateado
+  return {...agg, list, neto};
+}
+
+function computeFuelHistoric(){
+  const agg = aggregate(entries);
+  return agg;
+}
+
+function kmMetaMensual(){ return (config.metaNeta + config.costoPases) / (config.tarifaProm - config.gasolinaKmEst); }
+
+function render(){
+  const weekEnd = endOfWeek(viewingWeekStart);
+  const isCurrentWeek = viewingWeekStart === currentWeekStart();
+  const monthKey = weekMonthKey(viewingWeekStart);
+  const weeks = weeksInMonth(monthKey);
+  const nWeeks = weeks.length || 1;
+  const weeklyMetaNeta = config.metaNeta / nWeeks;
+  const weeklyKmMeta = kmMetaMensual() / nWeeks;
+  const weeklyHorasMeta = config.metaHoras / nWeeks;
+  const weeklyCostoPases = config.costoPases / nWeeks;
+
+  const s = statsForWeek(viewingWeekStart);
+  const netoConPase = s.neto - weeklyCostoPases;
+  const pct = Math.max(0, Math.min(150, (netoConPase / weeklyMetaNeta) * 100));
+  const over = netoConPase >= weeklyMetaNeta;
+  const netoRest = Math.max(0, weeklyMetaNeta - netoConPase);
+  const kmRest = Math.max(0, weeklyKmMeta - s.kmTotal);
+
+  const today = new Date();
+  const end = parseDate(weekEnd);
+  const daysRemaining = isCurrentWeek ? Math.max(0, Math.round((end - new Date(today.getFullYear(),today.getMonth(),today.getDate()))/86400000)) : 0;
+  const kmPorDia = daysRemaining>0 ? kmRest/daysRemaining : null;
+  const horasRest = Math.max(0, weeklyHorasMeta - s.horas);
+  const horasPorDia = daysRemaining>0 ? horasRest/daysRemaining : null;
+
+  // --- datos de la gráfica mensual ---
+  const chartWeeks = weeksInMonth(viewingChartMonth).map(ws => {
+    const st = statsForWeek(ws);
+    return {weekStart: ws, neto: st.neto, stats: st};
+  });
+  const monthlyCostoPases = config.costoPases;
+  const monthlyNetoBruto = chartWeeks.reduce((s,w)=>s+w.neto,0);
+  const monthlyNeto = monthlyNetoBruto - monthlyCostoPases;
+  const chartScale = Math.max(weeklyMetaNeta*1.25, ...chartWeeks.map(w=>w.neto), 1);
+  const targetLinePct = Math.min(100, (weeklyMetaNeta/chartScale)*100);
+  const [cy,cm] = viewingChartMonth.split('-').map(Number);
+  const isCurrentChartMonth = viewingChartMonth === currentMonthKey();
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="hero">
+      <div class="hero-top">
+        <div><div class="eyebrow">bitácora de ruta — barranquilla</div><h1>Semana del ${weekLabel(viewingWeekStart)}</h1></div>
+        <div class="nav">
+          <button onclick="changeWeek(-1)">‹</button>
+          <span>${isCurrentWeek ? 'semana actual' : 'histórico'}</span>
+          <button onclick="changeWeek(1)" ${isCurrentWeek?'disabled':''}>›</button>
+        </div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-num">${pct.toFixed(0)}<span>% de la meta semanal</span></div>
+        <div class="bar-track"><div class="bar-fill ${over?'over':''}" style="width:${Math.min(100,pct)}%"></div></div>
+        <div class="progress-caption">${fmtCOP(netoConPase)} neto de ${fmtCOP(weeklyMetaNeta)} (meta semanal ≈ meta mensual ÷ ${nWeeks} semanas) · ${over? 'meta cumplida' : fmtCOP(netoRest)+' por cubrir'}</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">km total (odómetro)</div><div class="value">${fmtNum(s.kmTotal)}<span style="font-size:12px;color:var(--ink-soft)"> / ${fmtNum(weeklyKmMeta)}</span></div></div>
+      <div class="stat"><div class="label">km productivo</div><div class="value">${fmtNum(s.kmProductivo)}</div><div class="sub">${fmtNum(s.pctVacio,0)}% del recorrido fue vacío</div></div>
+      <div class="stat"><div class="label">tarifa promedio / km productivo</div><div class="value ${s.tarifaProductivo>0 && s.tarifaProductivo<config.tarifaProm?'warn':'ok'}">${s.kmProductivo>0?fmtCOP(s.tarifaProductivo):'—'}</div></div>
+      <div class="stat"><div class="label">tarifa promedio / km total</div><div class="value">${s.kmTotal>0?fmtCOP(s.tarifaTotal):'—'}</div><div class="sub">incluye km vacío</div></div>
+      <div class="stat"><div class="label">gasto gasolina de la semana</div><div class="value">${fmtCOP(s.gasolina)}</div><div class="sub">${s.costoKmReal!=null? fmtCOP(s.costoKmReal)+'/km real' : ''}</div></div>
+      <div class="stat"><div class="label">servicios aeropuerto</div><div class="value">${s.aeropuerto}</div><div class="sub">rinden ~2x por km</div></div>
+    </div>
+
+    ${isCurrentWeek ? `
+    <div class="pace">
+      <div class="label">ritmo necesario — quedan ${daysRemaining} día${daysRemaining===1?'':'s'} de esta semana</div>
+      <div class="big">${kmPorDia!=null ? fmtNum(kmPorDia,0)+' km/día' : 'meta cumplida o semana cerrada'} ${horasPorDia!=null? '· '+fmtNum(horasPorDia,1)+' h/día':''}</div>
+      <div class="note">Entre menos % de km vacío, más sube tu tarifa real por km total — ahí es donde más se nota priorizar el aeropuerto.</div>
+    </div>` : ''}
+
+    ${(() => { const h = computeFuelHistoric(); return h.rendimiento!=null ? `
+    <div class="fuel-panel">
+      <div class="label">rendimiento histórico (todas las sesiones registradas)</div>
+      <div class="big">${fmtNum(h.rendimiento,1)} km/galón · ${fmtCOP(h.costoKmReal)}/km real de gasolina</div>
+      <div class="note">
+        Con ${fmtNum(h.kmTotal)} km de odómetro y ${fmtCOP(h.gasolina)} gastados, a ${fmtCOP(config.precioGalon)}/galón.
+        La meta objetivo usa un estimado de ${fmtCOP(config.gasolinaKmEst)}/km.
+        ${Math.abs(h.costoKmReal - config.gasolinaKmEst) > 15 ? `<button class="small" style="margin-top:8px" onclick="syncGasolinaEstimado(${h.costoKmReal})">Actualizar meta con este dato real (${fmtCOP(h.costoKmReal)}/km)</button>` : ''}
+      </div>
+    </div>` : ''; })()}
+
+    <section>
+      <h2>
+        Ganancias mensuales — suma de semanas
+        <span class="nav">
+          <button onclick="changeChartMonth(-1)">‹</button>
+          ${MESES[cm-1]} ${cy}
+          <button onclick="changeChartMonth(1)" ${isCurrentChartMonth?'disabled':''}>›</button>
+        </span>
+      </h2>
+      <div class="chart-box">
+        <div class="chart-bars">
+          <div class="chart-target-line" style="bottom:${targetLinePct}%"></div>
+          <div class="chart-target-label" style="bottom:${targetLinePct}%">meta semanal</div>
+          ${chartWeeks.map(w => {
+            const h = Math.max(2, (w.neto/chartScale)*100);
+            const isThisWeek = w.weekStart === currentWeekStart();
+            const overW = w.neto >= weeklyMetaNeta;
+            return `
+            <div class="bar-col">
+              <div class="bar-val">${fmtCOP(w.neto)}</div>
+              <div class="bar-shape ${overW?'over':''} ${isThisWeek?'current':''}" style="height:${h}%" title="Semana del ${weekLabel(w.weekStart)}" onclick="jumpToWeek('${w.weekStart}')"></div>
+              <div class="bar-label">${fmtDayMonth(w.weekStart)}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="chart-total">
+          <div><div class="label">total neto del mes (ingresos − gasolina − pases)</div><div class="value">${fmtCOP(monthlyNeto)}</div></div>
+          <div style="text-align:right"><div class="label">meta mensual</div><div class="value" style="font-size:15px;color:var(--ink-soft)">${fmtCOP(config.metaNeta)}</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Registrar sesión</h2>
+      <form onsubmit="handleAddSession(event)">
+        <div class="grid2">
+          <div class="field"><label>Fecha</label><input type="date" id="f-date" value="${todayStr()}" required></div>
+          <div class="field"><label>Horas conectado</label><input type="number" step="0.1" id="f-horas" placeholder="4.0" required></div>
+          <div class="field"><label>Km inicial (odómetro)</label><input type="number" step="1" id="f-kmi" placeholder="45210" required></div>
+          <div class="field"><label>Km final (odómetro)</label><input type="number" step="1" id="f-kmf" placeholder="45342" required></div>
+          <div class="field"><label>Gasto gasolina de la sesión (COP)</label><input type="number" step="1000" id="f-gas" placeholder="43000"></div>
+        </div>
+        <div class="field"><label>Notas</label><textarea id="f-notas" rows="2" placeholder="ej: mucha lluvia, poca demanda..."></textarea></div>
+        <button type="submit" class="primary">Guardar sesión</button>
+        <div class="hint">Después de guardar, agregas cada servicio individual dentro de la sesión.</div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Sesiones de la semana</h2>
+      ${s.list.length===0 ? '<div class="log-empty">Todavía no hay sesiones esta semana.</div>' :
+        s.list.map(e => {
+          const kmT = sKmTotal(e), kmP = sKmProductivo(e), ing = sIngresos(e), marg = sMargen(e);
+          return `
+          <div class="session">
+            <div class="session-head">
+              <div>
+                <div class="s-date">${DIAS[parseDate(e.date).getDay()]} ${fmtDayMonth(e.date)}</div>
+                <div class="s-sub">${fmtNum(e.horas,1)} h conectado · ${fmtNum(kmT)} km odómetro (${fmtNum(e.kmInicial)} → ${fmtNum(e.kmFinal)})</div>
+                ${e.notas? `<div class="s-sub" style="font-style:italic">${e.notas}</div>`:''}
+              </div>
+              <div class="s-right">
+                <div class="s-amount">${fmtCOP(ing)}</div>
+                <div class="s-sub">margen: ${fmtCOP(marg)}</div>
+                <button class="s-del" onclick="deleteSession('${e.id}')">borrar sesión</button>
+              </div>
+            </div>
+            <div class="session-metrics">
+              <div class="m">km productivo<div class="mval">${fmtNum(kmP)}</div></div>
+              <div class="m">km vacío<div class="mval ${kmT>0 && (kmT-kmP)/kmT>0.35?'warn':''}">${fmtNum(kmT-kmP)} (${kmT>0?fmtNum((kmT-kmP)/kmT*100,0):0}%)</div></div>
+              <div class="m">$/km productivo<div class="mval">${kmP>0?fmtCOP(ing/kmP):'—'}</div></div>
+            </div>
+            <div class="services">
+              ${e.servicios.length===0 ? '<div class="hint">Sin servicios registrados aún.</div>' :
+                e.servicios.map(v => `
+                  <div class="svc-row">
+                    <span>${v.aeropuerto?'✈ ':''}${fmtNum(v.km)} km · ${fmtCOP(v.valor)} ${v.km>0?'· '+fmtCOP(v.valor/v.km)+'/km':''}</span>
+                    <button class="svc-del" onclick="deleteServicio('${e.id}','${v.id}')">borrar</button>
+                  </div>
+                `).join('')
+              }
+              <div class="svc-add">
+                <input type="number" step="1" placeholder="km" id="svc-km-${e.id}">
+                <input type="number" step="1000" placeholder="valor COP" id="svc-valor-${e.id}">
+                <label class="chk"><input type="checkbox" id="svc-air-${e.id}"> aeropuerto</label>
+                <button class="small" onclick="addServicio('${e.id}')">+ servicio</button>
+              </div>
+            </div>
+          </div>
+        `;}).join('')
+      }
+    </section>
+
+    <section>
+      <details>
+        <summary>Ajustar metas y supuestos</summary>
+        <div class="grid2">
+          <div class="field"><label>Meta neta mensual (COP)</label><input type="number" id="c-meta" value="${config.metaNeta}"></div>
+          <div class="field"><label>Tarifa promedio esperada (COP/km)</label><input type="number" id="c-tarifa" value="${config.tarifaProm}"></div>
+          <div class="field"><label>Costo gasolina estimado (COP/km, solo para meta objetivo)</label><input type="number" id="c-gas" value="${config.gasolinaKmEst}"></div>
+          <div class="field"><label>Precio del galón (COP)</label><input type="number" id="c-preciogal" value="${config.precioGalon}"></div>
+          <div class="field"><label>Costo pases mensual (COP)</label><input type="number" id="c-pases" value="${config.costoPases}"></div>
+          <div class="field"><label>Meta horas conectado/mes</label><input type="number" id="c-horas" value="${config.metaHoras}"></div>
+          <div class="field"><label>Día de inicio de semana (ciclo de pago Uber)</label>
+            <select id="c-startdow">
+              ${DIAS.map((d,i)=>`<option value="${i}" ${config.startOfWeek===i?'selected':''}>${d}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <button class="primary" onclick="handleSaveConfig()">Guardar ajustes</button>
+      </details>
+    </section>
+  `;
+}
+
+async function handleAddSession(ev){
+  ev.preventDefault();
+  const session = {
+    id: uid(),
+    date: document.getElementById('f-date').value,
+    horas: parseFloat(document.getElementById('f-horas').value) || 0,
+    kmInicial: parseFloat(document.getElementById('f-kmi').value) || 0,
+    kmFinal: parseFloat(document.getElementById('f-kmf').value) || 0,
+    gastoGasolina: parseFloat(document.getElementById('f-gas').value) || 0,
+    notas: document.getElementById('f-notas').value.trim(),
+    servicios: []
+  };
+  if(session.kmFinal < session.kmInicial){ showToast('El km final debe ser mayor al inicial.'); return; }
+  entries.push(session);
+  await saveEntries();
+  showToast('Sesión guardada — ahora agrega los servicios');
+  viewingWeekStart = startOfWeek(session.date);
+  render();
+}
+
+async function addServicio(sessionId){
+  const kmEl = document.getElementById('svc-km-'+sessionId);
+  const valEl = document.getElementById('svc-valor-'+sessionId);
+  const airEl = document.getElementById('svc-air-'+sessionId);
+  const km = parseFloat(kmEl.value), valor = parseFloat(valEl.value);
+  if(!km || !valor){ showToast('Falta km o valor del servicio.'); return; }
+  const session = entries.find(e => e.id === sessionId);
+  session.servicios.push({id: uid(), km, valor, aeropuerto: airEl.checked});
+  await saveEntries();
+  showToast('Servicio agregado');
+  render();
+}
+
+async function deleteServicio(sessionId, svcId){
+  const session = entries.find(e => e.id === sessionId);
+  session.servicios = session.servicios.filter(v => v.id !== svcId);
+  await saveEntries();
+  render();
+}
+
+async function deleteSession(id){
+  entries = entries.filter(e => e.id !== id);
+  await saveEntries();
+  showToast('Sesión borrada');
+  render();
+}
+
+function changeWeek(delta){
+  const d = parseDate(viewingWeekStart);
+  d.setDate(d.getDate() + delta*7);
+  const next = toDateStr(d);
+  if(next > currentWeekStart()) return;
+  viewingWeekStart = next;
+  render();
+}
+
+function jumpToWeek(weekStart){
+  viewingWeekStart = weekStart;
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function changeChartMonth(delta){
+  const [y,m] = viewingChartMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  const next = d.getFullYear()+'-'+pad(d.getMonth()+1);
+  if(next > currentMonthKey()) return;
+  viewingChartMonth = next;
+  render();
+}
+
+async function handleSaveConfig(){
+  config.metaNeta = parseFloat(document.getElementById('c-meta').value) || config.metaNeta;
+  config.tarifaProm = parseFloat(document.getElementById('c-tarifa').value) || config.tarifaProm;
+  config.gasolinaKmEst = parseFloat(document.getElementById('c-gas').value) || config.gasolinaKmEst;
+  config.precioGalon = parseFloat(document.getElementById('c-preciogal').value) || config.precioGalon;
+  config.costoPases = parseFloat(document.getElementById('c-pases').value) || config.costoPases;
+  config.metaHoras = parseFloat(document.getElementById('c-horas').value) || config.metaHoras;
+  config.startOfWeek = parseInt(document.getElementById('c-startdow').value);
+  await saveConfig();
+  showToast('Ajustes guardados');
+  render();
+}
+
+async function syncGasolinaEstimado(valorReal){
+  config.gasolinaKmEst = Math.round(valorReal);
+  await saveConfig();
+  showToast('Meta actualizada con el rendimiento real');
+  render();
+}
+
+loadData();
+</script>
+</body>
+</html>
