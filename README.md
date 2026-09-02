@@ -73,16 +73,26 @@ pnpm db:studio    # browse the data
 
 ## Deploy
 
-Vercel, personal scope — team `team_cGYqhg1A7bl3QaJvjeeW8pAQ`.
+Live at **https://uber-bitacora.vercel.app**, on Vercel under the `choconta-studio` scope, deployed from `main` on every push.
+
+Postgres comes from the Neon marketplace integration, which injects `DATABASE_URL` (and its `POSTGRES_*` aliases) into all three environments — never set that variable by hand, or connecting the resource fails with a conflict.
 
 ```bash
 vercel login
-vercel link --scope team_cGYqhg1A7bl3QaJvjeeW8pAQ
-vercel env add DATABASE_URL production   # repeat for APP_PASSWORD, AUTH_SECRET
-vercel --prod
+vercel link --yes --project uber-bitacora --scope choconta-studio
+vercel integration add neon                                    # accept the terms in the browser once
+vercel integration resource connect <resource> uber-bitacora   # injects DATABASE_URL
+vercel env add APP_PASSWORD production                          # and AUTH_SECRET
+vercel env pull .env.local --environment=development
+pnpm db:push                                                    # create the tables
 ```
 
-Add a Neon Postgres database from the Vercel dashboard's Storage tab to get `DATABASE_URL` provisioned automatically, then run `pnpm db:push` against it once.
+Two things to know:
+
+- **`APP_PASSWORD` and `AUTH_SECRET` are stored as sensitive**, so Vercel will not return their values — not through the API and not through `env pull`. Keep them in a password manager; they cannot be recovered from the platform.
+- **Changing an environment variable needs a redeploy** to take effect: `vercel redeploy <deployment-url> --scope choconta-studio`.
+
+Deployment protection is set to `all_except_custom_domains`, so the hashed deployment URLs sit behind Vercel SSO while `uber-bitacora.vercel.app` serves publicly — guarded by the app's own password gate.
 
 ## Project contracts
 

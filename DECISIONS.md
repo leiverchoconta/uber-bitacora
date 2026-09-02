@@ -4,7 +4,7 @@ Living governance log for `uber-bitacora`. Holds what `PRODUCT.md`, `UX.md` and 
 
 ## Coverage gaps
 
-- `lib/metrics.ts:DEFAULT_SETTINGS` — the app needs targets before the driver has saved any, and there is no seed migration — the Barranquilla figures from the prototype are hardcoded (net target $6.400.000, fare $2.000/km, fuel $324/km, gallon $15.650, fixed costs $404.000, 264 h) — would close with a seeded `settings` row created at first deploy.
+- `lib/metrics.ts:DEFAULT_SETTINGS` — the app needs targets before the driver has saved any, and there is no seed migration — the Barranquilla figures from the prototype are hardcoded (net target $6.400.000, fare $2.000/km, fuel $324/km, gallon $15.650, fixed costs $404.000, 264 h) — would close with a seeded `settings` row created at first deploy. The production database is empty, so these defaults are what the app shows until the first save.
 - `app/icon.svg` — a home-screen icon for the installed PWA — a hand-drawn 64px SVG monogram — would close with a real icon set (192/512 PNG) once the app has a visual identity worth exporting.
 - No design token package exists for a repo of one, so `app/globals.css` `@theme` is the single source and `DESIGN.md` frontmatter mirrors it by hand. The two must be edited together.
 
@@ -15,9 +15,13 @@ Living governance log for `uber-bitacora`. Holds what `PRODUCT.md`, `UX.md` and 
 - Does the login need rate limiting? — Leiver — before the URL is shared with anyone, or if the deployment is ever discovered. A single password with no attempt limit is acceptable only while the URL is effectively private.
 - Should the app run on Bun in production (self-hosted on Fly.io) rather than Node on Vercel? — Leiver — if a Vercel constraint actually bites. Bun is the local runtime and test runner today.
 - Is a dark theme worth it for night shifts? — Leiver — after a week of real night use. The palette is currently light-only.
+- Should missing configuration be detected at server start (via `instrumentation.ts`) instead of on the first request that needs it? — Leiver — if a secret goes missing again. An empty `AUTH_SECRET` shipped unnoticed because the anonymous request path never reads it.
+- Should a deleted session be recoverable? — Leiver — the first time one is deleted by accident. Delete cascades to services with no confirmation, which `UX.md` justifies; an undo would serve better than a dialog.
 
 ## Decisions log
 
+- 2026-09-02 — Postgres is provisioned by the Neon marketplace integration rather than a hand-set `DATABASE_URL` — the integration owns the variable across all three environments, and a manual variable of the same name blocks the resource from connecting at all — supersedes the manual env var added during the first deploy attempt.
+- 2026-09-02 — the database client is built on first query, not at module import — a runtime secret must never be a build-time requirement: the first production build failed because `/login`, which reads no data, transitively imported a client that threw without `DATABASE_URL`.
 - 2026-09-02 — no client components anywhere: every mutation is a `<form>` posting to a Server Action that redirects with `?ok=`/`?error=` — gives progressive enhancement for free (the app works before hydration and with JS off, which matters on a phone with bad signal after a shift), and removes `useState`, `useActionState` and toast state from the codebase entirely — supersedes the prototype's client-side rendering in `docs/prototype.html`.
 - 2026-09-02 — session dates are stored as Postgres `date` and "today" is resolved in `America/Bogota` via `Intl`, never from the server clock — a `timestamptz` would shift a Barranquilla shift into the previous or next day when rendered from a UTC server.
 - 2026-09-02 — time is stored as whole minutes and money as integer COP — floats in money and duration arithmetic drift, and the app compares against targets on every render.

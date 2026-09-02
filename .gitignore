@@ -42,3 +42,8 @@ next-env.d.ts
 
 # keep the template, ignore the real values
 !.env.example
+
+# agent skills vendored by `vercel integration add` (third-party, kept local)
+.agents
+.claude
+skills-lock.json
