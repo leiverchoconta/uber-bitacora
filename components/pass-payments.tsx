@@ -77,7 +77,7 @@ export function PassPayments({
           <Input
             type="number"
             name="amount"
-            step="1000"
+            step="1"
             min="1"
             inputMode="numeric"
             compact
@@ -92,7 +92,7 @@ export function PassPayments({
           <Input
             type="number"
             name="earningsCap"
-            step="1000"
+            step="1"
             min="0"
             inputMode="numeric"
             compact

@@ -68,10 +68,12 @@ export async function getSessions(): Promise<StoredSession[]> {
 }
 
 export async function getPassPayments(): Promise<StoredPassPayment[]> {
+  // Total ordering: `coverage()` takes the first capped pass it finds, so two
+  // passes on the same day must resolve the same way on every render.
   const rows = await getDb()
     .select()
     .from(passPayments)
-    .orderBy(desc(passPayments.date));
+    .orderBy(desc(passPayments.date), desc(passPayments.createdAt));
   return rows.map((row) => ({
     id: row.id,
     date: row.date,

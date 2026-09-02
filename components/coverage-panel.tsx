@@ -1,4 +1,4 @@
-import { dayMonth, money, percent } from "@/lib/format";
+import { dayMonth, money } from "@/lib/format";
 import type { Coverage } from "@/lib/metrics";
 import type { StoredPassPayment } from "@/lib/queries";
 
@@ -13,6 +13,11 @@ export function CoveragePanel({
   coverage: Coverage<StoredPassPayment>;
 }) {
   const low = coverage.usedPct >= 80;
+  // Floor it: rounding 99,6% up to "100% usado" would contradict the headline
+  // still offering money to bill. 100% is reserved for an exhausted ceiling.
+  const usedLabel = coverage.exhausted
+    ? "100%"
+    : `${Math.floor(coverage.usedPct)}%`;
 
   return (
     <div className="mt-5 rounded-sm border border-line bg-paper px-4 py-4">
@@ -38,8 +43,7 @@ export function CoveragePanel({
 
       <p className="mt-2 text-xs leading-relaxed text-ink-soft">
         Facturaste {money(coverage.used)} de un tope de {money(coverage.cap)} —{" "}
-        {percent(coverage.usedPct)} usado. Pagaste {money(coverage.pass.amount)}{" "}
-        por ese pase.
+        {usedLabel} usado. Pagaste {money(coverage.pass.amount)} por ese pase.
       </p>
       <p className="mt-1.5 text-[10px] text-ink-soft">
         El tope se consume con lo facturado bruto, contando desde el día del

@@ -48,7 +48,22 @@ function integer(
   return rounded;
 }
 
-/** Reads a decimal field and returns it scaled to an integer. */
+/** A whole-number field that may be left blank, in which case it is zero. */
+function optionalInteger(
+  form: FormData,
+  field: string,
+  label: string,
+  options: { max?: number } = {},
+): number {
+  if (text(form, field, 20) === "") return 0;
+  return integer(form, field, label, options);
+}
+
+/**
+ * Reads a genuinely decimal field (hours, gallons) and scales it to an
+ * integer. Not for money: it treats "." as a decimal point, so a peso value
+ * typed with thousand separators would collapse to a fraction of it.
+ */
 function scaled(
   form: FormData,
   field: string,
@@ -164,7 +179,7 @@ export async function addSession(form: FormData): Promise<void> {
     // required; without it, neither is accepted. Otherwise the flag would be
     // decoration and the fuel figures could silently disagree with it.
     const refueled = form.get("refueled") === "on";
-    const fuelCost = scaled(form, "fuelCost", "Valor de la gasolina", 1, {
+    const fuelCost = optionalInteger(form, "fuelCost", "Valor de la gasolina", {
       max: 5_000_000,
     });
     const fuelGallonsX100 = scaled(form, "gallons", "Galones", 100, {
@@ -245,7 +260,7 @@ export async function addPassPayment(form: FormData): Promise<void> {
 
     // The ordinary 3-day pass has no ceiling; a capped pass unlocks billing up
     // to one. An empty field means the ordinary kind.
-    const cap = scaled(form, "earningsCap", "Tope de ganancias", 1, {
+    const cap = optionalInteger(form, "earningsCap", "Tope de ganancias", {
       max: 50_000_000,
     });
     if (cap > 0 && cap <= amount) {

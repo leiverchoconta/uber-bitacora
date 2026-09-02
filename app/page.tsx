@@ -221,7 +221,9 @@ export default async function Home({
         </div>
       ) : null}
 
-      {passCoverage ? <CoveragePanel coverage={passCoverage} /> : null}
+      {isThisWeek && passCoverage ? (
+        <CoveragePanel coverage={passCoverage} />
+      ) : null}
 
       {lifetime.kmPerGallon !== null ? (
         <div className="mt-5 rounded-sm border border-line bg-paper px-4 py-4">

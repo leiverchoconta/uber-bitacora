@@ -198,6 +198,9 @@ export type Coverage<P extends PassPayment = PassPayment> = {
  * what the platform lets the driver bill, so fuel and passes do not enter.
  * There is no expiry date in the model — a capped pass lasts until its ceiling
  * is used up.
+ *
+ * On two capped passes sharing a date, the one earliest in `passes` wins, so
+ * callers must pass a totally ordered list (see `getPassPayments`).
  */
 export function coverage<P extends PassPayment>(
   sessions: Session[],

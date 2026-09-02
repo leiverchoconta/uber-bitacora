@@ -25,6 +25,8 @@ Living governance log for `uber-bitacora`. Holds what `PRODUCT.md`, `UX.md` and 
 
 ## Decisions log
 
+- 2026-09-02 — every numeric input uses `step="1"` for whole values and `step="any"` for decimals, never a "nice increment" — `step` defines which values are *valid* (`min + n × step`), not merely how far the spinner moves. `step="1000"` with `min="1"` made every realistic peso amount a `stepMismatch` that the browser refuses to submit: $85.500 for a pass, $1.600.000 for the weekly goal, any fare not divisible by 500. Caught in review of PR #2, present since PR #1.
+- 2026-09-02 — money is parsed with the digit-stripping `integer()`, never with the decimal-aware `scaled()` — `scaled` reads "841.900" as 841,9 and stores 842. `scaled` is now documented as being for hours and gallons only, and `optionalInteger()` covers blank-means-zero money fields.
 - 2026-09-02 — `earnings_cap` is nullable on `pass_payments` rather than a separate table or a pass-type enum — there are two kinds of pass and they differ by exactly one fact: whether a ceiling exists. A null column says that directly, and adding it needed no destructive migration.
 - 2026-09-02 — the ceiling is consumed by gross billing, counted from the day the pass was paid, and a capped pass never expires in the model — gross is what the platform actually limits, and no expiry rule was confirmed. If the real pass expires by date, coverage is overstated and the model needs a second field.
 - 2026-09-02 — a capped pass is charged to its week like any other pass, and the app does not model it exempting the driver from three-day passes — plausible, but unconfirmed, and guessing would distort the weekly net.

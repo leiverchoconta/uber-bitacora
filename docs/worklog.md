@@ -4,6 +4,25 @@ Running history of this repo, newest first. Records what changed and why it matt
 
 ## 2026-09-02 — Capped passes and remaining coverage
 
+**Code review of PR #2, and a defect it exposed across the whole app**
+
+The review flagged `step="1000"` on the new earnings-cap field. Extending the check to every numeric input showed the problem was systemic and had shipped in PR #1: `step` defines which values are **valid** (`min + n × step`), not how far the spinner moves. So the browser refused to submit:
+
+| field | min / step | blocked |
+|---|---|---|
+| pass amount | 1 / 1000 | $85.500, $40.000 — every real value |
+| earnings cap | 0 / 1000 | $841.900 |
+| service amount | 0 / 500 | any fare not divisible by 500 |
+| fuel cost | 0 / 1000 | any refuel not divisible by 1000 |
+| weekly goal | 1 / 50000 | $1.600.000 |
+
+Recording a pass, a service, a refuel, or saving the goal were all impossible through a browser. Every end-to-end test had used a direct POST, which skips HTML validation entirely — the tests were exercising a path no user takes. Whole-number fields are now `step="1"` and decimals `step="any"`.
+
+Second finding, equally real: the cap was parsed with `scaled()`, which treats `.` as a decimal point. A cap typed the way the app itself prints it — `$ 841.900` — became **842 pesos**, and drove the entire coverage panel. The same bug had just been introduced on `fuelCost` while fixing PR #1's blank-field problem. Money now goes through the digit-stripping `integer()`, with `optionalInteger()` for blank-means-zero, and `scaled()` is documented as hours-and-gallons only. Verified by posting "85.500" / "841.900" and reading back 85500 / 841900.
+
+Three smaller ones fixed: two capped passes on the same day resolved by whatever order Postgres returned, so `getPassPayments` now orders by date **and** `createdAt`; the coverage panel rendered its present-tense figure inside historical weeks, where the pace panel is already hidden; and rounding could print "100% usado" beside a headline still offering money to bill, so the percentage floors and 100% is reserved for an exhausted ceiling.
+
+
 A pass bought by mistake turned out to be a different product: $85.500 that unlocks billing up to $841.900, where the ordinary three-day pass is a flat cost with no ceiling at all.
 
 Recording the payment itself needed no code — `pass_payments` already takes any amount on any date. What was missing was the ceiling, and it is not special to this one payment: it is the fact that distinguishes the two kinds of pass. `earnings_cap` is now a nullable column, null meaning the ordinary pass, which meant a non-destructive `db:push` for once.
