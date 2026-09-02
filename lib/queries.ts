@@ -5,9 +5,10 @@
 
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "./db";
-import { services, sessions, settings } from "./db/schema";
+import { passPayments, services, sessions, settings } from "./db/schema";
 import {
   DEFAULT_SETTINGS,
+  type PassPayment,
   type Service,
   type Session,
   type Settings,
@@ -22,19 +23,12 @@ export type StoredSession = Omit<Session, "services"> & {
   services: StoredService[];
 };
 
+export type StoredPassPayment = PassPayment & { id: string };
+
 export async function getSettings(): Promise<Settings> {
   const [row] = await getDb().select().from(settings).where(eq(settings.id, 1));
   if (!row) return DEFAULT_SETTINGS;
-
-  return {
-    netTargetMonthly: row.netTargetMonthly,
-    farePerKmTarget: row.farePerKmTarget,
-    fuelCostPerKmEstimate: row.fuelCostPerKmEstimate,
-    gallonPrice: row.gallonPrice,
-    fixedCostsMonthly: row.fixedCostsMonthly,
-    hoursTargetMonthly: row.hoursTargetMonthly,
-    weekStartsOn: row.weekStartsOn,
-  };
+  return { netTargetWeekly: row.netTargetWeekly };
 }
 
 export async function getSessions(): Promise<StoredSession[]> {
@@ -61,8 +55,22 @@ export async function getSessions(): Promise<StoredSession[]> {
     minutes: row.minutes,
     kmStart: row.kmStart,
     kmEnd: row.kmEnd,
+    refueled: row.refueled,
     fuelCost: row.fuelCost,
+    fuelGallonsX100: row.fuelGallonsX100,
     notes: row.notes,
     services: bySession.get(row.id) ?? [],
+  }));
+}
+
+export async function getPassPayments(): Promise<StoredPassPayment[]> {
+  const rows = await getDb()
+    .select()
+    .from(passPayments)
+    .orderBy(desc(passPayments.date));
+  return rows.map((row) => ({
+    id: row.id,
+    date: row.date,
+    amount: row.amount,
   }));
 }

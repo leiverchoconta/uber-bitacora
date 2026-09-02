@@ -1,7 +1,11 @@
 import { addService, deleteService, deleteSession } from "@/app/actions";
 import { Button, Input } from "@/components/ui";
 import { hours, money, number, weekdayDayMonth } from "@/lib/format";
-import { sessionKm, sessionNet, sessionProductiveKm } from "@/lib/metrics";
+import {
+  sessionKm,
+  sessionNetOfFuel,
+  sessionProductiveKm,
+} from "@/lib/metrics";
 import type { StoredSession } from "@/lib/queries";
 
 export function SessionCard({
@@ -13,8 +17,9 @@ export function SessionCard({
 }) {
   const km = sessionKm(session);
   const productiveKm = sessionProductiveKm(session);
-  const net = sessionNet(session);
+  const net = sessionNetOfFuel(session);
   const emptyPct = km > 0 ? ((km - productiveKm) / km) * 100 : 0;
+  const gallons = session.fuelGallonsX100 / 100;
 
   return (
     <article className="mb-3.5 border border-line border-l-[3px] border-l-gold bg-paper">
@@ -34,7 +39,9 @@ export function SessionCard({
           >
             {money(net)}
           </div>
-          <div className="text-[11px] text-ink-soft">neto de la sesión</div>
+          <div className="text-[11px] text-ink-soft">
+            {session.refueled ? "neto, con el tanqueo" : "ingresos del turno"}
+          </div>
         </div>
       </header>
 
@@ -45,8 +52,22 @@ export function SessionCard({
           value={`${number(emptyPct)}%`}
           warn={emptyPct > 40}
         />
-        <Metric label="gasolina" value={money(session.fuelCost)} />
+        <Metric
+          label="tanqueo"
+          value={
+            session.refueled
+              ? `${money(session.fuelCost)} · ${number(gallons, 2)} gal`
+              : "—"
+          }
+        />
       </div>
+
+      {session.refueled ? (
+        <p className="px-4 pt-2 text-[10px] text-ink-soft">
+          El tanqueo se carga completo a este turno, así que se ve peor que los
+          que gastaron esa gasolina. La semana es la que cuadra.
+        </p>
+      ) : null}
 
       <div className="px-4 pt-2.5 pb-3.5">
         {session.services.length === 0 ? (

@@ -4,6 +4,9 @@ import { Button, Field, Input, Textarea } from "@/components/ui";
 /**
  * Plain form posting to a Server Action: no client JavaScript, so it works
  * on a phone with a bad connection and submits before hydration.
+ *
+ * The fuel fields are always visible — without JavaScript nothing can be
+ * hidden — so the "tanqueé" checkbox is what makes them required or refused.
  */
 export function SessionForm({
   weekStart,
@@ -52,17 +55,44 @@ export function SessionForm({
             required
           />
         </Field>
-        <Field label="Gasto en gasolina (COP)">
-          <Input
-            type="number"
-            name="fuelCost"
-            step="1000"
-            min="0"
-            inputMode="numeric"
-            defaultValue={0}
-            required
-          />
-        </Field>
+      </div>
+
+      <fieldset className="mt-4 border-t border-line pt-3">
+        <legend className="sr-only">Gasolina</legend>
+        <label className="flex items-center gap-2 text-xs text-ink">
+          <input type="checkbox" name="refueled" className="size-4" />
+          Tanqueé en este turno
+        </label>
+        <p className="mt-1 text-[10px] text-ink-soft">
+          Si lo marcas, escribe el valor y los galones — con eso se mide el
+          rendimiento real contra el odómetro.
+        </p>
+        <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
+          <Field label="Valor de la gasolina (COP)">
+            <Input
+              type="number"
+              name="fuelCost"
+              step="1000"
+              min="0"
+              inputMode="numeric"
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Galones" hint="Los del recibo o la bomba">
+            <Input
+              type="number"
+              name="gallons"
+              step="0.01"
+              min="0"
+              max="100"
+              inputMode="decimal"
+              placeholder="0"
+            />
+          </Field>
+        </div>
+      </fieldset>
+
+      <div className="mt-3">
         <Field label="Notas" hint="Opcional">
           <Textarea
             name="notes"
