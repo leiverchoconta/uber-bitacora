@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bitácora de ruta
 
-## Getting Started
+Weekly logbook for connected Uber driving sessions. Records each shift — hours, odometer, fuel, and the trips it produced — and derives what the platform's own app does not report: net income after fuel and fixed costs, the share of kilometers driven empty, the real cost per kilometer, and the pace needed to close the monthly target.
 
-First, run the development server:
+Single driver, single password. The interface is in Spanish (es-CO); the code and docs are in English.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Package manager | pnpm |
+| Runtime & tests | Bun (`bun test`) |
+| Framework | Next.js 16 (App Router, Server Actions) |
+| Database | Postgres (Neon) via Drizzle ORM |
+| Styling | Tailwind CSS v4 (`@theme` tokens in `app/globals.css`) |
+| Lint & format | Biome |
+| Hosting | Vercel |
+
+No client components: every mutation is a plain `<form>` posting to a Server Action, so the app works before hydration and with JavaScript disabled.
+
+## Layout
+
+```
+app/
+  page.tsx           week dashboard — stats, pace, chart, log, settings
+  actions.ts         Server Actions: the only write path, and where input is validated
+  login/page.tsx     password gate
+  manifest.ts        home-screen install metadata
+components/          presentational only, no data access
+lib/
+  metrics.ts         all business logic, pure functions over plain data
+  metrics.test.ts    the project's test suite
+  dates.ts           YYYY-MM-DD arithmetic, timezone-safe
+  format.ts          es-CO display formatting
+  auth.ts            password check and signed session cookie
+  queries.ts         database reads
+  db/schema.ts       three tables: sessions, services, settings
+docs/
+  worklog.md         running history
+  prototype.html     the original single-file prototype, kept as reference
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Business logic lives in `lib/metrics.ts` and touches neither React nor the database, which is why it is the part with tests.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm install
+cp .env.example .env.local     # then fill in the three values
+pnpm db:push                   # create the tables
+pnpm dev
+```
 
-## Learn More
+`.env.local` needs:
 
-To learn more about Next.js, take a look at the following resources:
+- `DATABASE_URL` — Neon connection string.
+- `APP_PASSWORD` — the password that opens the app.
+- `AUTH_SECRET` — cookie signing key, `openssl rand -hex 32`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+All three are required at build time as well as at runtime.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Commands
 
-## Deploy on Vercel
+```bash
+pnpm dev          # dev server
+pnpm build        # production build
+pnpm test         # bun test
+pnpm typecheck    # tsc --noEmit
+pnpm check        # biome check --write
+pnpm db:push      # push the schema to the database
+pnpm db:studio    # browse the data
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Vercel, personal scope — team `team_cGYqhg1A7bl3QaJvjeeW8pAQ`.
+
+```bash
+vercel login
+vercel link --scope team_cGYqhg1A7bl3QaJvjeeW8pAQ
+vercel env add DATABASE_URL production   # repeat for APP_PASSWORD, AUTH_SECRET
+vercel --prod
+```
+
+Add a Neon Postgres database from the Vercel dashboard's Storage tab to get `DATABASE_URL` provisioned automatically, then run `pnpm db:push` against it once.
+
+## Project contracts
+
+`PRODUCT.md` (strategy) · `UX.md` (behavior) · `DESIGN.md` (visuals) · `DECISIONS.md` (open questions and deliberate calls).
