@@ -10,6 +10,7 @@ import {
 import {
   aggregate,
   averageMinutesPerWeek,
+  coverage,
   DEFAULT_SETTINGS,
   monthReport,
   passesBetween,
@@ -18,6 +19,10 @@ import {
   WEEK_STARTS_ON,
   weekReport,
 } from "./metrics";
+
+function pass(date: string, amount: number, earningsCap: number | null = null) {
+  return { date, amount, earningsCap };
+}
 
 function session(date: string, over: Partial<Session> = {}): Session {
   return {
@@ -173,11 +178,11 @@ test("a session's net charges only the fuel loaded during it", () => {
 
 test("passes are counted by the day they were paid, on any weekday", () => {
   const passes = [
-    { date: "2026-08-30", amount: 40_000 }, // previous week
-    { date: "2026-08-31", amount: 40_000 }, // Monday, first day
-    { date: "2026-09-03", amount: 40_000 }, // Thursday, mid-week
-    { date: "2026-09-06", amount: 40_000 }, // Sunday, last day
-    { date: "2026-09-07", amount: 40_000 }, // next week
+    { date: "2026-08-30", amount: 40_000, earningsCap: null }, // previous week
+    { date: "2026-08-31", amount: 40_000, earningsCap: null }, // Monday, first day
+    { date: "2026-09-03", amount: 40_000, earningsCap: null }, // Thursday, mid-week
+    { date: "2026-09-06", amount: 40_000, earningsCap: null }, // Sunday, last day
+    { date: "2026-09-07", amount: 40_000, earningsCap: null }, // next week
   ];
   const inWeek = passesBetween(passes, "2026-08-31", "2026-09-06");
   expect(inWeek.map((p) => p.date)).toEqual([
@@ -217,9 +222,9 @@ test("the week's net is revenue minus fuel minus the passes actually paid", () =
       }),
     ],
     [
-      { date: "2026-09-01", amount: 40_000 },
-      { date: "2026-09-04", amount: 40_000 },
-      { date: "2026-09-09", amount: 40_000 }, // next week, must not count
+      { date: "2026-09-01", amount: 40_000, earningsCap: null },
+      { date: "2026-09-04", amount: 40_000, earningsCap: null },
+      { date: "2026-09-09", amount: 40_000, earningsCap: null }, // next week, must not count
     ],
     "2026-08-31",
     { netTargetWeekly: 1_000_000 },
@@ -361,9 +366,9 @@ test("the month charges every pass that fell inside it", () => {
       }),
     ],
     [
-      { date: "2026-09-02", amount: 40_000 },
-      { date: "2026-09-20", amount: 40_000 },
-      { date: "2026-10-20", amount: 40_000 }, // another month
+      { date: "2026-09-02", amount: 40_000, earningsCap: null },
+      { date: "2026-09-20", amount: 40_000, earningsCap: null },
+      { date: "2026-10-20", amount: 40_000, earningsCap: null }, // another month
     ],
     "2026-09",
     DEFAULT_SETTINGS,
@@ -375,4 +380,100 @@ test("the month charges every pass that fell inside it", () => {
   expect(report.weeks.length).toBe(
     weeksInMonth("2026-09", WEEK_STARTS_ON).length,
   );
+});
+
+// --- capped passes -----------------------------------------------------------
+
+test("no capped pass means no coverage panel at all", () => {
+  expect(coverage([], [])).toBeNull();
+  // Ordinary 3-day passes carry no ceiling, so they never produce coverage.
+  expect(
+    coverage([session("2026-09-02")], [pass("2026-09-02", 40_000)]),
+  ).toBeNull();
+});
+
+test("coverage is the ceiling minus gross billing since the pass", () => {
+  const result = coverage(
+    [
+      // Before the pass: does not consume it.
+      session("2026-09-01", {
+        services: [{ km: 40, amount: 200_000, isAirport: false }],
+      }),
+      // Same day as the pass: counts.
+      session("2026-09-02", {
+        services: [{ km: 50, amount: 312_400, isAirport: false }],
+      }),
+    ],
+    [pass("2026-09-02", 85_500, 841_900)],
+  );
+
+  expect(result?.cap).toBe(841_900);
+  expect(result?.used).toBe(312_400);
+  expect(result?.remaining).toBe(529_500);
+  expect(result?.exhausted).toBe(false);
+  expect(result?.usedPct).toBeCloseTo((312_400 / 841_900) * 100, 6);
+});
+
+test("the ceiling is consumed by gross billing, not by take-home", () => {
+  const result = coverage(
+    [
+      session("2026-09-02", {
+        refueled: true,
+        fuelCost: 120_000,
+        fuelGallonsX100: 750,
+        services: [{ km: 50, amount: 300_000, isAirport: false }],
+      }),
+    ],
+    [pass("2026-09-02", 85_500, 841_900)],
+  );
+  // Fuel reduced take-home but not what the platform let him bill.
+  expect(result?.used).toBe(300_000);
+});
+
+test("an exhausted ceiling reports zero left, never a negative", () => {
+  const result = coverage(
+    [
+      session("2026-09-03", {
+        services: [{ km: 400, amount: 900_000, isAirport: false }],
+      }),
+    ],
+    [pass("2026-09-02", 85_500, 841_900)],
+  );
+  expect(result?.exhausted).toBe(true);
+  expect(result?.remaining).toBe(0);
+  expect(result?.usedPct).toBe(100);
+});
+
+test("the most recent capped pass is the active one", () => {
+  const result = coverage(
+    [
+      session("2026-09-02", {
+        services: [{ km: 40, amount: 500_000, isAirport: false }],
+      }),
+      session("2026-09-10", {
+        services: [{ km: 40, amount: 100_000, isAirport: false }],
+      }),
+    ],
+    [
+      pass("2026-09-02", 85_500, 841_900),
+      pass("2026-09-09", 85_500, 841_900),
+      pass("2026-09-06", 40_000), // uncapped, must not win
+    ],
+  );
+  expect(result?.pass.date).toBe("2026-09-09");
+  // Only what was billed from the 9th onward.
+  expect(result?.used).toBe(100_000);
+});
+
+test("a capped pass still costs the week it fell in", () => {
+  const report = weekReport(
+    [],
+    [pass("2026-09-02", 85_500, 841_900)],
+    "2026-08-31",
+    DEFAULT_SETTINGS,
+    null,
+    "2026-09-02",
+  );
+  expect(report.passCost).toBe(85_500);
+  expect(report.net).toBe(-85_500);
 });

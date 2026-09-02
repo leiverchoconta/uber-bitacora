@@ -1,3 +1,4 @@
+import { CoveragePanel } from "@/components/coverage-panel";
 import { PassPayments } from "@/components/pass-payments";
 import { SessionCard } from "@/components/session-card";
 import { SessionForm } from "@/components/session-form";
@@ -24,6 +25,7 @@ import {
 import {
   aggregate,
   averageMinutesPerWeek,
+  coverage,
   monthReport,
   WEEK_STARTS_ON,
   weekReport,
@@ -74,6 +76,7 @@ export default async function Home({
   );
   const month = monthReport(sessions, passes, monthKey, settings);
   const averageWeeklyMinutes = averageMinutesPerWeek(sessions);
+  const passCoverage = coverage(sessions, passes);
 
   const isThisWeek = weekStart === thisWeek;
   const reachedTarget = week.net >= week.target;
@@ -217,6 +220,8 @@ export default async function Home({
           )}
         </div>
       ) : null}
+
+      {passCoverage ? <CoveragePanel coverage={passCoverage} /> : null}
 
       {lifetime.kmPerGallon !== null ? (
         <div className="mt-5 rounded-sm border border-line bg-paper px-4 py-4">

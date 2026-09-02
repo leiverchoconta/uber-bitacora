@@ -76,5 +76,6 @@ export async function getPassPayments(): Promise<StoredPassPayment[]> {
     id: row.id,
     date: row.date,
     amount: row.amount,
+    earningsCap: row.earningsCap,
   }));
 }

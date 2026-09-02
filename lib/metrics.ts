@@ -46,6 +46,11 @@ export type Session = {
 export type PassPayment = {
   date: string;
   amount: number;
+  /**
+   * Earnings ceiling this pass unlocks, or `null` for the ordinary 3-day pass,
+   * which has no ceiling and is simply a cost.
+   */
+  earningsCap: number | null;
 };
 
 export type Settings = {
@@ -173,6 +178,51 @@ export function averageMinutesPerWeek(sessions: Session[]): number | null {
     sessions.map((s) => startOfWeek(s.date, WEEK_STARTS_ON)),
   );
   return sum(sessions, (s) => s.minutes) / weeks.size;
+}
+
+export type Coverage<P extends PassPayment = PassPayment> = {
+  pass: P;
+  cap: number;
+  /** Gross billing since the pass date, inclusive — what consumes the cap. */
+  used: number;
+  remaining: number;
+  usedPct: number;
+  exhausted: boolean;
+};
+
+/**
+ * Remaining headroom under the most recent capped pass, or `null` when no
+ * capped pass was ever recorded.
+ *
+ * The cap is consumed by gross billing, not by take-home: it is a ceiling on
+ * what the platform lets the driver bill, so fuel and passes do not enter.
+ * There is no expiry date in the model — a capped pass lasts until its ceiling
+ * is used up.
+ */
+export function coverage<P extends PassPayment>(
+  sessions: Session[],
+  passes: P[],
+): Coverage<P> | null {
+  const capped = passes.filter((p) => p.earningsCap !== null);
+  if (capped.length === 0) return null;
+
+  const pass = capped.reduce((latest, p) =>
+    p.date > latest.date ? p : latest,
+  );
+  const cap = pass.earningsCap as number;
+  const used = sum(
+    sessions.filter((s) => s.date >= pass.date),
+    sessionRevenue,
+  );
+
+  return {
+    pass,
+    cap,
+    used,
+    remaining: Math.max(0, cap - used),
+    usedPct: cap > 0 ? Math.min(100, (used / cap) * 100) : 0,
+    exhausted: used >= cap,
+  };
 }
 
 export type WeekReport<

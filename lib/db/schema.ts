@@ -77,9 +77,13 @@ export const services = pgTable(
 );
 
 /**
- * One platform pass payment. Paid roughly every three days on no fixed
- * weekday, so the cost is recorded as it happens rather than prorated: a week
- * costs whatever passes actually fell inside it.
+ * One platform pass payment, recorded as it happens rather than prorated: a
+ * week costs whatever passes actually fell inside it.
+ *
+ * Two kinds exist. The ordinary pass is paid roughly every three days on no
+ * fixed weekday and carries no ceiling — `earnings_cap` is null. A capped pass
+ * costs more and unlocks billing up to a ceiling, which is what that column
+ * holds.
  */
 export const passPayments = pgTable(
   "pass_payments",
@@ -87,6 +91,8 @@ export const passPayments = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     date: date("date").notNull(),
     amount: integer("amount").notNull(),
+    /** Earnings ceiling this pass unlocks; null for the ordinary 3-day pass. */
+    earningsCap: integer("earnings_cap"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -94,6 +100,11 @@ export const passPayments = pgTable(
   (table) => [
     index("pass_payments_date_idx").on(table.date),
     check("pass_payments_amount_positive", sql`${table.amount} > 0`),
+    // A ceiling below what the pass cost would be a typo, not a deal.
+    check(
+      "pass_payments_cap_above_amount",
+      sql`${table.earningsCap} is null or ${table.earningsCap} > ${table.amount}`,
+    ),
   ],
 );
 

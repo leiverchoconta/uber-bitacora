@@ -238,14 +238,28 @@ export async function deleteService(form: FormData): Promise<void> {
 
 export async function addPassPayment(form: FormData): Promise<void> {
   await guard(form, "Pase registrado", async () => {
+    const amount = integer(form, "amount", "Valor del pase", {
+      min: 1,
+      max: 5_000_000,
+    });
+
+    // The ordinary 3-day pass has no ceiling; a capped pass unlocks billing up
+    // to one. An empty field means the ordinary kind.
+    const cap = scaled(form, "earningsCap", "Tope de ganancias", 1, {
+      max: 50_000_000,
+    });
+    if (cap > 0 && cap <= amount) {
+      throw new InvalidInput(
+        "El tope debe ser mayor al valor que pagaste por el pase.",
+      );
+    }
+
     await getDb()
       .insert(passPayments)
       .values({
         date: isoDate(form, "date", "Fecha del pase"),
-        amount: integer(form, "amount", "Valor del pase", {
-          min: 1,
-          max: 5_000_000,
-        }),
+        amount,
+        earningsCap: cap > 0 ? cap : null,
       });
   });
 }

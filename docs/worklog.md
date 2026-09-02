@@ -2,6 +2,26 @@
 
 Running history of this repo, newest first. Records what changed and why it mattered — the context `git log` alone does not carry.
 
+## 2026-09-02 — Capped passes and remaining coverage
+
+A pass bought by mistake turned out to be a different product: $85.500 that unlocks billing up to $841.900, where the ordinary three-day pass is a flat cost with no ceiling at all.
+
+Recording the payment itself needed no code — `pass_payments` already takes any amount on any date. What was missing was the ceiling, and it is not special to this one payment: it is the fact that distinguishes the two kinds of pass. `earnings_cap` is now a nullable column, null meaning the ordinary pass, which meant a non-destructive `db:push` for once.
+
+**What the ceiling buys**
+
+A coverage panel: the ceiling minus everything billed since the day the pass was paid. That figure is what says when the next pass is needed — not a three-day count. Rust at 80% used, "Tope agotado" at 100%, and remaining never goes negative.
+
+**Assumptions stated rather than guessed**
+
+The ceiling is consumed by **gross** billing, since that is what the platform limits — fuel and passes do not enter it. And a capped pass **does not expire** in this model; it lasts until the ceiling is used up. Neither rule was confirmed, so both are written into `UX.md` as behavioral constraints and into `DECISIONS.md` as open questions. Also deliberately not modeled: that a capped pass might exempt the driver from three-day passes while it has headroom. Plausible, unconfirmed, and guessing would distort the weekly net — so both kinds still add up as cost, which is what was actually paid.
+
+**Verification**
+
+Six new tests: no coverage without a capped pass (an ordinary pass never produces one), ceiling minus gross billing from the pass date inclusive, gross rather than take-home consuming it, an exhausted ceiling reporting zero instead of a negative, the most recent capped pass winning over both an older capped one and a newer uncapped one, and a capped pass still costing its week.
+
+End-to-end against Neon: a ceiling below the amount paid refused in the action and by the `pass_payments_cap_above_amount` check, an ordinary pass saved with no ceiling, and a capped pass of $85.500/$841.900 producing exactly $529.500 remaining at 37% used after billing $312.400. Test data removed afterward.
+
 ## 2026-09-02 — One goal, measured assumptions
 
 Reworked the settings model at the driver's request: the app now asks for a single number and derives everything else from what actually happened.

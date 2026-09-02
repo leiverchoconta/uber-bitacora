@@ -10,6 +10,8 @@ Living governance log for `uber-bitacora`. Holds what `PRODUCT.md`, `UX.md` and 
 
 ## Open questions
 
+- Does a capped pass exempt the driver from the three-day passes while it has headroom left? — Leiver — before the next capped pass is bought. Both kinds currently add up as cost, which is what was actually paid.
+- Does a capped pass expire by date, or only when its ceiling is used up? — Leiver — before the next capped pass. The model assumes no expiry; if there is one, coverage is overstated.
 - Should the app warn when a pass is due, counting three days from the last payment? — Leiver — proposed and left out to keep the change to what was asked. The helper written for it was deleted as dead code rather than kept unused; it is a handful of lines to write fresh.
 - Should the km-remaining figure account for passes not yet paid this week? — Leiver — if the figure proves misleading in practice. It currently divides a shortfall that includes the passes already paid by a margin measured before passes, so it is short by whatever passes are still due. Correcting it means projecting the three-day cycle, which this design deliberately rejects; the caption states the omission instead.
 - Should schema changes move from `drizzle-kit push` to generated migrations? — Leiver — before the next schema change, now that production carries real rows. `push` cannot resolve a column rename without an interactive prompt, and the `sessions_refuel_consistent` check cannot be added to a table whose existing rows violate it. The last migration only worked because every table was verified empty first.
@@ -23,6 +25,9 @@ Living governance log for `uber-bitacora`. Holds what `PRODUCT.md`, `UX.md` and 
 
 ## Decisions log
 
+- 2026-09-02 — `earnings_cap` is nullable on `pass_payments` rather than a separate table or a pass-type enum — there are two kinds of pass and they differ by exactly one fact: whether a ceiling exists. A null column says that directly, and adding it needed no destructive migration.
+- 2026-09-02 — the ceiling is consumed by gross billing, counted from the day the pass was paid, and a capped pass never expires in the model — gross is what the platform actually limits, and no expiry rule was confirmed. If the real pass expires by date, coverage is overstated and the model needs a second field.
+- 2026-09-02 — a capped pass is charged to its week like any other pass, and the app does not model it exempting the driver from three-day passes — plausible, but unconfirmed, and guessing would distort the weekly net.
 - 2026-09-02 — `fuelCostPerKm` and `netOfFuelPerKm` are `null` until a refuel exists, not just until distance exists — with no refuel recorded, fuel cost is 0, so the margin would have reported the entire fare as take-home and the km-remaining figure would have been optimistic by the whole cost of fuel. Caught in review of PR #1.
 - 2026-09-02 — the month chart distinguishes a losing week from an unrecorded one: a week with any session or pass shows its real figure, in rust when negative, and only an untouched week shows a dash. Once passes are charged to the week they fell in, a negative week is ordinary, and the Empty Ink Rule reserves the dash for unmeasured — supersedes the `net > 0` test carried over from the monthly model.
 - 2026-09-02 — a settings panel showing the default target says so in words rather than presenting 1.600.000 as a saved choice.
