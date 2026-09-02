@@ -46,7 +46,7 @@ export default async function Home({
   await requireSession();
 
   const params = await searchParams;
-  const [settings, sessions, passes] = await Promise.all([
+  const [{ settings, saved }, sessions, passes] = await Promise.all([
     getSettings(),
     getSessions(),
     getPassPayments(),
@@ -157,7 +157,7 @@ export default async function Home({
           sub={
             week.kmRemaining !== null
               ? `faltan ${number(week.kmRemaining)} km`
-              : "sin margen medido aún"
+              : "sin tanqueo registrado aún"
           }
         />
         <Stat
@@ -204,8 +204,8 @@ export default async function Home({
                 {week.kmPerRemainingDay !== null
                   ? `, unos ${number(week.kmPerRemainingDay)} km con tu margen medido de ${money(
                       lifetime.netOfFuelPerKm ?? 0,
-                    )} por km`
-                  : ". Registra una semana con tanqueo y la app calcula los km"}
+                    )} por km. No cuenta los pases que aún no has pagado esta semana`
+                  : ". Registra un turno con tanqueo y la app calcula los km"}
                 .
               </p>
             </>
@@ -240,7 +240,7 @@ export default async function Home({
             passes={week.passes}
             total={week.passCost}
             weekStart={weekStart}
-            today={now}
+            defaultDate={isThisWeek ? now : weekStart}
           />
         </Section>
 
@@ -285,7 +285,11 @@ export default async function Home({
           )}
         </Section>
 
-        <SettingsPanel settings={settings} weekStart={weekStart} />
+        <SettingsPanel
+          settings={settings}
+          saved={saved}
+          weekStart={weekStart}
+        />
       </div>
     </main>
   );

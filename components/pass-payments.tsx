@@ -12,12 +12,13 @@ export function PassPayments({
   passes,
   total,
   weekStart,
-  today,
+  defaultDate,
 }: {
   passes: StoredPassPayment[];
   total: number;
   weekStart: string;
-  today: string;
+  /** Today when the week on screen contains it, otherwise that week's Monday. */
+  defaultDate: string;
 }) {
   return (
     <div className="border border-line bg-paper p-4">
@@ -63,7 +64,7 @@ export function PassPayments({
           <Input
             type="date"
             name="date"
-            defaultValue={today}
+            defaultValue={defaultDate}
             compact
             required
             className="w-40"

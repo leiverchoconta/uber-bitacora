@@ -10,9 +10,12 @@ import type { Settings } from "@/lib/metrics";
  */
 export function SettingsPanel({
   settings,
+  saved,
   weekStart,
 }: {
   settings: Settings;
+  /** Whether the driver has actually saved a target, or is seeing the default. */
+  saved: boolean;
   weekStart: string;
 }) {
   return (
@@ -38,9 +41,13 @@ export function SettingsPanel({
           />
         </Field>
         <p className="mt-2 text-[11px] text-ink-soft">
-          Hoy la meta es {money(settings.netTargetWeekly)} por semana. Los km
-          que hacen falta para llegar los calcula la app con tu margen medido,
-          no con un estimado.
+          {saved
+            ? `Tu meta es ${money(settings.netTargetWeekly)} por semana.`
+            : `Aún no has guardado una meta: ${money(
+                settings.netTargetWeekly,
+              )} es el valor por defecto.`}{" "}
+          Los km que hacen falta para llegar los calcula la app con tu margen
+          medido, no con un estimado.
         </p>
         <Button type="submit" className="mt-3">
           Guardar meta

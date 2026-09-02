@@ -11,7 +11,6 @@ import {
   aggregate,
   averageMinutesPerWeek,
   DEFAULT_SETTINGS,
-  daysSinceLastPass,
   monthReport,
   passesBetween,
   type Session,
@@ -112,12 +111,41 @@ test("fuel economy comes from real gallons and odometer km", () => {
   expect(totals.netOfFuelPerKm).toBe(-300); // no trips: pure cost
 });
 
-test("no refuel yet means no economy figure, not a zero", () => {
+test("no refuel yet means no fuel figure at all, not a zero", () => {
   const totals = aggregate([session("2026-09-01")]);
   expect(totals.gallons).toBe(0);
-  expect(totals.kmPerGallon).toBeNull();
   expect(totals.fuelCost).toBe(0);
-  expect(totals.fuelCostPerKm).toBe(0);
+  expect(totals.kmPerGallon).toBeNull();
+  // Without a refuel these are unmeasured, not measured as zero — reporting
+  // 0 COP/km of fuel would make the margin the whole fare.
+  expect(totals.fuelCostPerKm).toBeNull();
+  expect(totals.netOfFuelPerKm).toBeNull();
+});
+
+test("the margin stays unmeasured until a tank is recorded", () => {
+  // Real distance and real revenue, but no fuel: revenue/km is not a margin.
+  const noRefuel = aggregate([
+    session("2026-09-01", {
+      kmStart: 0,
+      kmEnd: 400,
+      services: [{ km: 200, amount: 1_000_000, isAirport: false }],
+    }),
+  ]);
+  expect(noRefuel.km).toBe(400);
+  expect(noRefuel.netOfFuel).toBe(1_000_000);
+  expect(noRefuel.netOfFuelPerKm).toBeNull();
+
+  const withRefuel = aggregate([
+    session("2026-09-01", {
+      kmStart: 0,
+      kmEnd: 400,
+      refueled: true,
+      fuelCost: 120_000,
+      fuelGallonsX100: 750,
+      services: [{ km: 200, amount: 1_000_000, isAirport: false }],
+    }),
+  ]);
+  expect(withRefuel.netOfFuelPerKm).toBe((1_000_000 - 120_000) / 400);
 });
 
 test("aggregate of nothing does not divide by zero", () => {
@@ -157,19 +185,6 @@ test("passes are counted by the day they were paid, on any weekday", () => {
     "2026-09-03",
     "2026-08-31",
   ]);
-});
-
-test("days since the last pass, and nothing to report when there are none", () => {
-  expect(daysSinceLastPass([], "2026-09-05")).toBeNull();
-  expect(
-    daysSinceLastPass(
-      [
-        { date: "2026-09-02", amount: 40_000 },
-        { date: "2026-08-30", amount: 40_000 },
-      ],
-      "2026-09-05",
-    ),
-  ).toBe(3);
 });
 
 // --- the weekly goal --------------------------------------------------------

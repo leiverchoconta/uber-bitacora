@@ -97,9 +97,12 @@ export type Totals = {
   farePerKm: number;
   /** Odometer km per real gallon loaded. `null` until a tank is recorded. */
   kmPerGallon: number | null;
-  /** Measured fuel cost per km. `null` until there is distance to divide by. */
+  /** Measured fuel cost per km. `null` until a refuel is recorded. */
   fuelCostPerKm: number | null;
-  /** Measured take-home per km, before passes. Drives the km target. */
+  /**
+   * Measured take-home per km, before passes. Drives the km target, and is
+   * `null` until a refuel exists — otherwise it would be the whole fare.
+   */
   netOfFuelPerKm: number | null;
 };
 
@@ -111,6 +114,7 @@ export function aggregate(sessions: Session[]): Totals {
   const emptyKm = km - productiveKm;
   const gallons = sum(sessions, (s) => s.fuelGallonsX100) / 100;
   const netOfFuel = revenue - fuelCost;
+  const refuels = sessions.filter((s) => s.refueled).length;
 
   return {
     km,
@@ -126,13 +130,15 @@ export function aggregate(sessions: Session[]): Totals {
       sessions,
       (s) => s.services.filter((v) => v.isAirport).length,
     ),
-    refuels: sessions.filter((s) => s.refueled).length,
+    refuels,
     gallons,
     farePerProductiveKm: productiveKm > 0 ? revenue / productiveKm : 0,
     farePerKm: km > 0 ? revenue / km : 0,
     kmPerGallon: km > 0 && gallons > 0 ? km / gallons : null,
-    fuelCostPerKm: km > 0 ? fuelCost / km : null,
-    netOfFuelPerKm: km > 0 ? netOfFuel / km : null,
+    // Both need a refuel behind them: with none recorded, `fuelCost` is 0 and
+    // these would report a cost of nothing and a margin of the full fare.
+    fuelCostPerKm: km > 0 && refuels > 0 ? fuelCost / km : null,
+    netOfFuelPerKm: km > 0 && refuels > 0 ? netOfFuel / km : null,
   };
 }
 
@@ -167,16 +173,6 @@ export function averageMinutesPerWeek(sessions: Session[]): number | null {
     sessions.map((s) => startOfWeek(s.date, WEEK_STARTS_ON)),
   );
   return sum(sessions, (s) => s.minutes) / weeks.size;
-}
-
-/** Days since the most recent pass payment, or `null` if none was recorded. */
-export function daysSinceLastPass(
-  passes: PassPayment[],
-  now: string = today(),
-): number | null {
-  if (passes.length === 0) return null;
-  const last = passes.reduce((a, b) => (a.date > b.date ? a : b));
-  return toEpochDay(now) - toEpochDay(last.date);
 }
 
 export type WeekReport<
@@ -260,9 +256,18 @@ export function weekReport<T extends Session, P extends PassPayment>(
   };
 }
 
+export type MonthWeek = {
+  weekStart: string;
+  net: number;
+  totals: Totals;
+  passCost: number;
+  /** Whether anything was recorded at all — a net of 0 is otherwise ambiguous. */
+  worked: boolean;
+};
+
 export type MonthReport = {
   monthKey: string;
-  weeks: { weekStart: string; net: number; totals: Totals }[];
+  weeks: MonthWeek[];
   totals: Totals;
   passCost: number;
   /** The month's net after every pass that fell inside it. */
@@ -277,13 +282,18 @@ export function monthReport(
   settings: Settings,
 ): MonthReport {
   const weekStarts = weeksInMonth(monthKey, WEEK_STARTS_ON);
-  const weeks = weekStarts.map((weekStart) => {
-    const totals = aggregate(sessionsInWeek(sessions, weekStart));
-    const weekPassCost = sum(
-      passesBetween(passes, weekStart, endOfWeek(weekStart)),
-      (p) => p.amount,
-    );
-    return { weekStart, net: totals.netOfFuel - weekPassCost, totals };
+  const weeks: MonthWeek[] = weekStarts.map((weekStart) => {
+    const inWeek = sessionsInWeek(sessions, weekStart);
+    const totals = aggregate(inWeek);
+    const weekPasses = passesBetween(passes, weekStart, endOfWeek(weekStart));
+    const passCost = sum(weekPasses, (p) => p.amount);
+    return {
+      weekStart,
+      net: totals.netOfFuel - passCost,
+      totals,
+      passCost,
+      worked: inWeek.length > 0 || weekPasses.length > 0,
+    };
   });
 
   const totals = aggregate(

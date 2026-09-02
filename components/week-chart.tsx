@@ -33,6 +33,7 @@ export function WeekChart({
 
         {report.weeks.map((week) => {
           const height = Math.max(0, (week.net / scale) * 100);
+          // A losing week draws no bar — the rust figure above it is the signal.
           const reached = week.net >= report.weeklyTarget;
           const isCurrent = week.weekStart === currentWeekStart;
           return (
@@ -40,8 +41,12 @@ export function WeekChart({
               key={week.weekStart}
               className="flex h-full flex-1 flex-col items-center justify-end"
             >
-              <span className="mb-1 whitespace-nowrap text-[10px] text-ink-soft">
-                {week.net > 0 ? money(week.net) : "—"}
+              <span
+                className={`mb-1 whitespace-nowrap text-[10px] ${
+                  week.worked && week.net < 0 ? "text-rust" : "text-ink-soft"
+                }`}
+              >
+                {week.worked ? money(week.net) : "—"}
               </span>
               <div
                 className={`w-[70%] rounded-t-sm ${

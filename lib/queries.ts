@@ -25,10 +25,14 @@ export type StoredSession = Omit<Session, "services"> & {
 
 export type StoredPassPayment = PassPayment & { id: string };
 
-export async function getSettings(): Promise<Settings> {
+/** `saved` is false when the driver has not stored a target yet. */
+export async function getSettings(): Promise<{
+  settings: Settings;
+  saved: boolean;
+}> {
   const [row] = await getDb().select().from(settings).where(eq(settings.id, 1));
-  if (!row) return DEFAULT_SETTINGS;
-  return { netTargetWeekly: row.netTargetWeekly };
+  if (!row) return { settings: DEFAULT_SETTINGS, saved: false };
+  return { settings: { netTargetWeekly: row.netTargetWeekly }, saved: true };
 }
 
 export async function getSessions(): Promise<StoredSession[]> {

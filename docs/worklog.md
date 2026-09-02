@@ -30,6 +30,22 @@ Then end-to-end against Neon: all three refuel validations refused as intended, 
 
 Schema applied by dropping and recreating the tables, which was safe only because all four were verified empty first. `drizzle-kit push` cannot resolve a column rename without an interactive prompt.
 
+**Code review of PR #1, and what it caught**
+
+One blocking bug: an untouched fuel field posts an empty string, and `integer()` rejects that. Since most shifts have no refuel, *every ordinary save was refused* with "Valor de la gasolina: escribe un número." The end-to-end test had passed `fuelCost=0` explicitly, which is not what the form sends — the test was verifying a request no browser makes. Fixed by reading the field with the helper that already treats an omitted value as zero, and re-tested with the exact payload the form produces.
+
+Three more that were real:
+
+- With sessions logged but no refuel yet, the measured margin equalled revenue ÷ km, because fuel cost was zero. The app presented that as "tu margen medido" and derived a km target from it — optimistic by the entire cost of fuel, and contradicting what `UX.md` promised. Both fuel figures are now `null` until a refuel exists.
+- The month chart rendered any week at or below zero as a dash. That was right when fixed costs were monthly, but now that passes are charged to the week they fell in, a negative week is ordinary — a week off with one pass paid looked identical to a week never worked. A week with any record now shows its real figure, in rust when negative.
+- The pass form defaulted to today even when reviewing a past week, so a forgotten pass would save into the current week and vanish from the list on screen. It now defaults to the displayed week.
+
+Plus three small ones: an omitted field could bypass a `min > 0` requirement inside the validation helper, a variable named `hours` held minutes, and `daysSinceLastPass` was dead code — deleted rather than left waiting for a feature that was cut.
+
+**Two findings answered with words instead of code.** The km-remaining figure is short by the passes not yet paid this week; closing that gap requires projecting the three-day cycle, which this design rejects on purpose, so the caption now states the omission. And `drizzle-kit push` cannot repeat this migration on a table with rows — recorded as an open question rather than pre-building migration infrastructure.
+
+The settings panel also now says when the target on screen is the default rather than one the driver saved.
+
 ## 2026-09-02 — Deployed to production on Neon
 
 Live at https://uber-bitacora.vercel.app, backed by a Neon Postgres provisioned through the Vercel marketplace integration.

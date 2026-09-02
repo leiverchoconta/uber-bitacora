@@ -10,7 +10,9 @@ Living governance log for `uber-bitacora`. Holds what `PRODUCT.md`, `UX.md` and 
 
 ## Open questions
 
-- Should the app warn when a pass is due, counting three days from the last payment? — Leiver — proposed and deliberately left out of the weekly-goal change to keep it to what was asked. `daysSinceLastPass()` already exists and is tested, so the warning is a few lines of UI away.
+- Should the app warn when a pass is due, counting three days from the last payment? — Leiver — proposed and left out to keep the change to what was asked. The helper written for it was deleted as dead code rather than kept unused; it is a handful of lines to write fresh.
+- Should the km-remaining figure account for passes not yet paid this week? — Leiver — if the figure proves misleading in practice. It currently divides a shortfall that includes the passes already paid by a margin measured before passes, so it is short by whatever passes are still due. Correcting it means projecting the three-day cycle, which this design deliberately rejects; the caption states the omission instead.
+- Should schema changes move from `drizzle-kit push` to generated migrations? — Leiver — before the next schema change, now that production carries real rows. `push` cannot resolve a column rename without an interactive prompt, and the `sessions_refuel_consistent` check cannot be added to a table whose existing rows violate it. The last migration only worked because every table was verified empty first.
 - Is per-tank fuel economy worth the extra precision over the running average? — Leiver — if the running average proves too noisy. Tank-to-tank would need the odometer reading at the pump, which is one more number to type per refuel.
 - Should a wrong session be editable instead of delete-and-retype? — Leiver — when a typo actually costs more than 30 seconds to fix in practice.
 - Does the login need rate limiting? — Leiver — before the URL is shared with anyone, or if the deployment is ever discovered. A single password with no attempt limit is acceptable only while the URL is effectively private.
@@ -21,6 +23,9 @@ Living governance log for `uber-bitacora`. Holds what `PRODUCT.md`, `UX.md` and 
 
 ## Decisions log
 
+- 2026-09-02 — `fuelCostPerKm` and `netOfFuelPerKm` are `null` until a refuel exists, not just until distance exists — with no refuel recorded, fuel cost is 0, so the margin would have reported the entire fare as take-home and the km-remaining figure would have been optimistic by the whole cost of fuel. Caught in review of PR #1.
+- 2026-09-02 — the month chart distinguishes a losing week from an unrecorded one: a week with any session or pass shows its real figure, in rust when negative, and only an untouched week shows a dash. Once passes are charged to the week they fell in, a negative week is ordinary, and the Empty Ink Rule reserves the dash for unmeasured — supersedes the `net > 0` test carried over from the monthly model.
+- 2026-09-02 — a settings panel showing the default target says so in words rather than presenting 1.600.000 as a saved choice.
 - 2026-09-02 — the driver configures one number: the weekly take-home target. Expected fare per km, estimated fuel cost per km, gallon price, monthly fixed costs and the hours target were all removed as settings — every one of them is now measured from the sessions or recorded as it happens, which is both less to maintain and more truthful: a typed estimate never corrects itself — supersedes the seven-field settings panel and `monthlyKmTarget()`.
 - 2026-09-02 — the goal is weekly and used whole, never prorated — monthly goals had to be divided by a month's week count, which made every figure depend on a calendar rule that has nothing to do with driving — supersedes `weeklyTargets()`.
 - 2026-09-02 — passes are recorded as payments with their real date, not projected from the three-day cadence — the cadence does not align to weeks, and a recorded payment is a fact while a projection is an assumption that breaks the first time the cycle slips.

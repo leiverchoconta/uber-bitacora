@@ -57,7 +57,11 @@ function scaled(
   { min = 0, max = Number.MAX_SAFE_INTEGER } = {},
 ): number {
   const raw = text(form, field, 20).replace(",", ".");
-  if (raw === "") return 0;
+  if (raw === "") {
+    // An omitted field is zero only when zero is actually allowed.
+    if (min > 0) throw new InvalidInput(`${label}: escribe un número.`);
+    return 0;
+  }
   const value = Number(raw);
   if (!Number.isFinite(value) || value < min || value > max) {
     throw new InvalidInput(`${label}: debe estar entre ${min} y ${max}.`);
@@ -150,15 +154,17 @@ export async function addSession(form: FormData): Promise<void> {
       );
     }
 
-    const hours = scaled(form, "hours", "Horas conectado", 60, { max: 24 });
-    if (hours === 0)
-      throw new InvalidInput("Horas conectado: escribe un número.");
+    // Holds minutes, not hours: the field is decimal hours, scaled on read.
+    const minutes = scaled(form, "hours", "Horas conectado", 60, {
+      min: 0.25,
+      max: 24,
+    });
 
     // The refuel checkbox drives validation: with it, both numbers are
     // required; without it, neither is accepted. Otherwise the flag would be
     // decoration and the fuel figures could silently disagree with it.
     const refueled = form.get("refueled") === "on";
-    const fuelCost = integer(form, "fuelCost", "Valor de la gasolina", {
+    const fuelCost = scaled(form, "fuelCost", "Valor de la gasolina", 1, {
       max: 5_000_000,
     });
     const fuelGallonsX100 = scaled(form, "gallons", "Galones", 100, {
@@ -180,7 +186,7 @@ export async function addSession(form: FormData): Promise<void> {
       .insert(sessions)
       .values({
         date,
-        minutes: hours,
+        minutes,
         kmStart,
         kmEnd,
         refueled,
