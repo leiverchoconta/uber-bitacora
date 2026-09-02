@@ -120,7 +120,7 @@ export function SessionCard({
             name="amount"
             placeholder="valor"
             min="0"
-            step="500"
+            step="1"
             inputMode="numeric"
             required
             compact

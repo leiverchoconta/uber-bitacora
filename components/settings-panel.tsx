@@ -34,7 +34,7 @@ export function SettingsPanel({
             type="number"
             name="netTargetWeekly"
             min="1"
-            step="50000"
+            step="1"
             inputMode="numeric"
             defaultValue={settings.netTargetWeekly}
             required

@@ -23,7 +23,7 @@ settings (single row)     sessions ──< services     pass_payments
 
 - **session** — one connected shift on a calendar date: minutes connected, odometer start and end, whether the tank was filled, and what that fill cost in pesos and gallons.
 - **service** — one paid trip inside a session: kilometers, amount, airport flag.
-- **pass_payment** — one platform pass, recorded on the day it was actually paid. Not attached to a session or a week.
+- **pass_payment** — one platform pass, recorded on the day it was actually paid. Not attached to a session or a week. Two kinds: the ordinary three-day pass, which is only a cost, and a capped pass, which also unlocks billing up to a ceiling (`earnings_cap`).
 - **settings** — one row holding one number: the weekly take-home target.
 
 Derived aggregates are never stored. Totals, net income, empty-kilometer share, fuel economy and pace are all computed from the rows on every render (`lib/metrics.ts`), so correcting a session immediately corrects every number that depends on it.
@@ -36,7 +36,9 @@ Derived aggregates are never stored. Totals, net income, empty-kilometer share, 
 
 **Log a shift** — park the car → open the app (already authenticated) → the week's state is on screen → fill date, hours, odometer start/end → tick *tanqueé en este turno* only if the tank was filled, and then its cost and gallons → *Guardar sesión* → lands on the week the session belongs to, with the session card at the top of the log and a prompt to add its trips. If validation fails (odometer running backwards, more than 2.000 km in one shift, fuel figures disagreeing with the refuel checkbox), the page returns with the reason stated and nothing saved.
 
-**Record a pass** — the passes section of the week → date (defaults to today) and amount → *Registrar pase* → the week's net drops by that amount immediately. Passes are paid roughly every three days on no fixed weekday, so they are recorded as they happen rather than prorated.
+**Record a pass** — the passes section of the week → date (defaults to the week on screen) and amount, plus the earnings ceiling if the pass carries one → *Registrar pase* → the week's net drops by that amount immediately. Passes are paid roughly every three days on no fixed weekday, so they are recorded as they happen rather than prorated.
+
+**Watch the ceiling** — once a capped pass exists, a panel states how much is left to bill under it: the ceiling minus everything billed since the day it was paid. That figure, not a three-day count, is what says when the next pass is needed. It turns rust at 80% and reads "Tope agotado" at 100%.
 
 **Add the trips** — on the session card → type kilometers and amount, tick *aeropuerto* if it applies → *Agregar* → the trip appears in the card's list and every derived figure on the page updates. Repeat per trip; the row stays open for the next one. A trip is removed with *borrar* on its row.
 
@@ -86,6 +88,9 @@ Derived aggregates are never stored. Totals, net income, empty-kilometer share, 
 - **Refuel checkbox disagreeing with the fuel figures** — rejected both ways: ticked with a zero cost or zero gallons, and unticked with either one filled in. Without JavaScript the fields cannot be hidden, so validation is what gives the checkbox meaning.
 - **A measured margin at or below zero** — no kilometre target is shown. A driver losing money per kilometre cannot be told how far to drive to reach a positive goal.
 - **A week with a refuel and one without** — the refuel week looks worse and the other looks inflated. The session card says so in place; the weekly figure is the one that balances.
+- **An earnings ceiling at or below what the pass cost** — rejected as a typo, in the action and again by a database check.
+- **A ceiling already exceeded** — remaining reads $0, never a negative, and the panel says "Tope agotado".
+- **Several capped passes over time** — the most recent one is the active one, and only billing from its date onward counts against it.
 - **Timezone** — a session's date is a calendar date, stored as `date`, never a timestamp. "Today" is resolved in `America/Bogota` regardless of where the server runs.
 - **Month with five weeks** — targets divide by five that month, not by a hardcoded four.
 - **Thousands of rows** — not a case worth designing for: one driver generates a few hundred sessions a year, and the whole set is aggregated in memory. If it ever matters, aggregation moves into SQL.
@@ -95,6 +100,8 @@ Derived aggregates are never stored. Totals, net income, empty-kilometer share, 
 
 - **Exactly one settings row exists.** Enforced by a database check constraint (`id = 1`), not by convention. Saving settings upserts that row.
 - **A trip cannot exist without its session.** Deleting a session cascades to its trips.
+- **An earnings ceiling is consumed by gross billing, not by take-home.** It is a limit on what the platform lets the driver bill, so fuel and passes do not enter the calculation.
+- **A capped pass has no expiry in the model** — it lasts until its ceiling is used up. If the real product expires by date, this model overstates coverage.
 - **Passes cost whatever actually fell inside the period.** A week charges the passes paid between its Monday and Sunday; a month charges every pass inside it. Nothing is prorated or projected from the three-day cadence.
 - **Fuel is only recorded at a refuel.** A shift with no fill-up carries no fuel cost, which makes per-session net lumpy by design and per-week net exact.
 - **The kilometre target is derived from measurement, never typed.** It follows from the weekly target, the passes already paid, and the measured take-home per kilometre across all history.

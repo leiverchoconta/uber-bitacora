@@ -35,6 +35,9 @@ export function PassPayments({
             >
               <span>
                 {dayMonth(pass.date)} · {money(pass.amount)}
+                {pass.earningsCap !== null
+                  ? ` · tope ${money(pass.earningsCap)}`
+                  : ""}
               </span>
               <form action={deletePassPayment}>
                 <input type="hidden" name="week" value={weekStart} />
@@ -74,12 +77,27 @@ export function PassPayments({
           <Input
             type="number"
             name="amount"
-            step="1000"
+            step="1"
             min="1"
             inputMode="numeric"
             compact
             required
             className="w-28"
+          />
+        </Field>
+        <Field
+          label="Tope de ganancias"
+          hint="Solo si el pase trae techo; vacío para el de 3 días"
+        >
+          <Input
+            type="number"
+            name="earningsCap"
+            step="1"
+            min="0"
+            inputMode="numeric"
+            compact
+            placeholder="sin tope"
+            className="w-32"
           />
         </Field>
         <Button tone="secondary" type="submit">

@@ -27,7 +27,7 @@ export function SessionForm({
           <Input
             type="number"
             name="hours"
-            step="0.25"
+            step="any"
             min="0"
             max="24"
             inputMode="decimal"
@@ -72,7 +72,7 @@ export function SessionForm({
             <Input
               type="number"
               name="fuelCost"
-              step="1000"
+              step="1"
               min="0"
               inputMode="numeric"
               placeholder="0"
@@ -82,7 +82,7 @@ export function SessionForm({
             <Input
               type="number"
               name="gallons"
-              step="0.01"
+              step="any"
               min="0"
               max="100"
               inputMode="decimal"
