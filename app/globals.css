@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Editorial paper palette carried over from the prototype: warm paper ground,
+ * deep teal for structure, gold for progress, rust for warnings.
+ * All values are sRGB hex.
+ */
+@theme {
+  --color-bg: #f3eee1;
+  --color-paper: #fbf8f0;
+  --color-ink: #1c1b17;
+  --color-ink-soft: #5b5648;
+  --color-teal: #16403d;
+  --color-teal-soft: #3e6663;
+  --color-gold: #d6a13c;
+  --color-rust: #b3492e;
+  --color-moss: #4f7a52;
+  --color-line: #dad1ba;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+/* Native controls should match the paper, not the browser default. */
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* The date input's picker icon is invisible on the paper ground otherwise. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
 }
